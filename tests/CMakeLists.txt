@@ -1,6 +1,7 @@
 enable_testing()
 
 list(APPEND TESTS
+  filter_lock_test
   peterson_lock_test
 )
 

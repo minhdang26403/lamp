@@ -1,8 +1,8 @@
+#include "peterson_lock.h"
+
 #include <gtest/gtest.h>
 #include <atomic>
 #include <thread>
-
-#include "peterson_lock.h"
 
 /**
  * @brief This test ensures that two threads cannot enter the critical section
