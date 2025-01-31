@@ -1,11 +1,11 @@
 enable_testing()
 
 list(APPEND TESTS
-  counter
+  peterson_lock_test
 )
 
-foreach(test IN LISTS tests)
-  add_executable(${test} ${test}.cpp)
-  target_link_libraries(${test} GTest::gtest_main)
-  gtest_discover_tests(${test})
+foreach(TEST IN LISTS TESTS)
+  add_executable(${TEST} ${TEST}.cpp)
+  target_link_libraries(${TEST} GTest::gtest_main)
+  gtest_discover_tests(${TEST})
 endforeach()
