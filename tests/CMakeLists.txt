@@ -3,6 +3,7 @@ enable_testing()
 list(APPEND TESTS
   filter_lock_test
   peterson_lock_test
+  ticket_lock_test
 )
 
 foreach(TEST IN LISTS TESTS)
