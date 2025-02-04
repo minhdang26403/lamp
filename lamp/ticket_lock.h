@@ -4,12 +4,14 @@
 #include <atomic>
 #include <thread>
 
-class TicketLock {
+#include "lock.h"
+
+class TicketLock : public Lock {
  public:
-  auto lock() -> void {
+  auto lock() -> void override {
     // Take a ticket - atomic increment guarantees unique, monotonically
     // increasing numbers
-    size_t my_ticket = next_ticket.fetch_add(1, std::memory_order_relaxed);
+    uint64_t my_ticket = next_ticket.fetch_add(1, std::memory_order_relaxed);
 
     // Wait until it's our turn
     while (now_serving.load(std::memory_order_acquire) != my_ticket) {
@@ -17,14 +19,14 @@ class TicketLock {
     }
   }
 
-  auto unlock() -> void {
+  auto unlock() -> void override {
     // Move to next ticket
     now_serving.fetch_add(1, std::memory_order_release);
   }
 
  private:
-  std::atomic<size_t> next_ticket{0};
-  std::atomic<size_t> now_serving{0};
+  std::atomic<uint64_t> next_ticket{0};
+  std::atomic<uint64_t> now_serving{0};
 };
 
 #endif  // TICKET_LOCK_H_

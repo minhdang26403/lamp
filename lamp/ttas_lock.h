@@ -13,9 +13,7 @@
  */
 class TTASLock : public Lock {
  public:
-  TTASLock() {
-    state.clear(std::memory_order_release);
-  }
+  TTASLock() {}
 
   auto lock() -> void override {
     while (true) {
@@ -29,7 +27,7 @@ class TTASLock : public Lock {
   auto unlock() -> void override { state.clear(std::memory_order_release); }
 
  private:
-  std::atomic_flag state;
+  std::atomic_flag state{false};
 };
 
 #endif  // TAS_LOCK_H_
