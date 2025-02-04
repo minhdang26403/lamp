@@ -5,8 +5,8 @@
 
 class Lock {
  public:
-  virtual auto Acquire() -> void = 0;
-  virtual auto Release() -> void = 0;
+  virtual auto lock() -> void = 0;
+  virtual auto unlock() -> void = 0;
 };
 
 #endif  // LOCK_H_

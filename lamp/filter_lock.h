@@ -12,7 +12,7 @@ class FilterLock {
     }
   }
 
-  auto Acquire(int me) -> void {
+  auto lock(int me) -> void {
     for (int i = 1; i < n; i++) {
       level[me] = i;
       victim[i] = me;
@@ -30,7 +30,7 @@ class FilterLock {
     }
   }
 
-  auto Release(int me) -> void { level[me] = 0; }
+  auto unlock(int me) -> void { level[me] = 0; }
 
  private:
   int n;

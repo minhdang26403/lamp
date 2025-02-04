@@ -14,12 +14,12 @@ TEST(TicketLockTest, MutualExclusion) {
 
   auto critical_section = [&]() {
     for (int i = 0; i < num_iterations; i++) {
-      lock.Acquire();
+      lock.lock();
       int expected = counter.load();
       std::this_thread::yield();  // Encourage race conditions
       counter.store(expected + 1);
       EXPECT_EQ(counter.load(), expected + 1);
-      lock.Release();
+      lock.unlock();
     }
   };
 
@@ -44,10 +44,10 @@ TEST(TicketLockTest, StressTest) {
 
   auto worker = [&]() {
     for (int i = 0; i < num_iterations; i++) {
-      lock.Acquire();
+      lock.lock();
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
-      lock.Release();
+      lock.unlock();
     }
   };
 
@@ -73,9 +73,9 @@ TEST(FilterLockTest, NoDeadLock) {
   std::atomic<bool> done = false;
 
   auto worker = [&]() {
-    lock.Acquire();
+    lock.lock();
     done.store(true, std::memory_order_relaxed);
-    lock.Release();
+    lock.unlock();
   };
 
   std::vector<std::thread> threads;

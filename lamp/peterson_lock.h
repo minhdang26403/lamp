@@ -10,14 +10,14 @@ class PetersonLock {
  public:
   PetersonLock() {}
 
-  auto Acquire(int id) -> void {
+  auto lock(int id) -> void {
     int j = 1 - id;
     flag[id] = true;                    // I'm interested.
     victim = id;                        // you go first.
     while (flag[j] && victim == id) {}  // wait
   }
 
-  auto Release(int id) -> void {
+  auto release(int id) -> void {
     flag[id] = false;  // I'm not interested.
   }
 

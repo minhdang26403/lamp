@@ -6,18 +6,18 @@
 
 class TicketLock {
  public:
-  auto Acquire() -> void {
+  auto lock() -> void {
     // Take a ticket - atomic increment guarantees unique, monotonically
     // increasing numbers
     size_t my_ticket = next_ticket.fetch_add(1, std::memory_order_relaxed);
 
     // Wait until it's our turn
-    while (now_serving.load(std::memory_order_acquire) != my_ticket) {
+    while (now_serving.load(std::memory_order_lock) != my_ticket) {
       std::this_thread::yield();
     }
   }
 
-  auto Release() -> void {
+  auto release() -> void {
     // Move to next ticket
     now_serving.fetch_add(1, std::memory_order_release);
   }

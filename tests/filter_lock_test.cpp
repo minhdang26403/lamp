@@ -16,12 +16,12 @@ TEST(FilterLockTest, MutualExclusion) {
 
   auto critical_section = [&](int id) {
     for (int i = 0; i < num_iterations; i++) {
-      lock.Acquire(id);
+      lock.lock(id);
       int expected = counter.load();
       std::this_thread::yield();  // Encourage race conditions
       counter.store(expected + 1);
       EXPECT_EQ(counter.load(), expected + 1);
-      lock.Release(id);
+      lock.unlock(id);
     }
   };
 
@@ -46,10 +46,10 @@ TEST(FilterLockTest, StressTest) {
 
   auto worker = [&](int id) {
     for (int i = 0; i < num_iterations; i++) {
-      lock.Acquire(id);
+      lock.lock(id);
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
-      lock.Release(id);
+      lock.unlock(id);
     }
   };
 
@@ -75,9 +75,9 @@ TEST(FilterLockTest, NoDeadLock) {
   std::atomic<bool> done = false;
 
   auto worker = [&](int id) {
-    lock.Acquire(id);
+    lock.lock(id);
     done.store(true, std::memory_order_relaxed);
-    lock.Release(id);
+    lock.unlock(id);
   };
 
   std::vector<std::thread> threads;
@@ -107,9 +107,9 @@ TEST(FilterLockTest, NoStarvation) {
 
   auto worker = [&](int id) {
     for (int i = 0; i < 1000; i++) {
-      lock.Acquire(id);
+      lock.lock(id);
       entry_count[id].fetch_add(1, std::memory_order_relaxed);
-      lock.Release(id);
+      lock.unlock(id);
     }
   };
 

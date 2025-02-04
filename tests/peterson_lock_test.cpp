@@ -15,12 +15,12 @@ TEST(PetersonLockTest, MutualExclusion) {
 
   auto critical_section = [&](int id) {
     for (int i = 0; i < num_iterations; ++i) {
-      lock.Acquire(id);
+      lock.lock(id);
       int expected = counter.load();
       std::this_thread::yield();  // Yield to encourage race conditions
       counter.store(expected + 1);
       EXPECT_EQ(counter.load(), expected + 1);
-      lock.Release(id);
+      lock.unlock(id);
     }
   };
 
@@ -32,7 +32,7 @@ TEST(PetersonLockTest, MutualExclusion) {
 }
 
 /**
- * @brief This test ensures the lock can be acquired and released repeatedly
+ * @brief This test ensures the lock can be lockd and released repeatedly
  * without issues.
  */
 TEST(PetersonLockTest, StressTest) {
@@ -42,10 +42,10 @@ TEST(PetersonLockTest, StressTest) {
 
   auto worker = [&](int id) {
     for (int i = 0; i < num_iterations; i++) {
-      lock.Acquire(id);
+      lock.lock(id);
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
-      lock.Release(id);
+      lock.unlock(id);
     }
   };
 
@@ -66,9 +66,9 @@ TEST(PetersonLockTest, NoDeadLock) {
   std::atomic<bool> done = false;
 
   auto worker = [&](int id) {
-    lock.Acquire(id);
+    lock.lock(id);
     done.store(true, std::memory_order_relaxed);
-    lock.Release(id);
+    lock.unlock(id);
   };
 
   std::thread t1(worker, 0);
