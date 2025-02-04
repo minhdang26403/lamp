@@ -17,7 +17,7 @@ class PetersonLock {
     while (flag[j] && victim == id) {}  // wait
   }
 
-  auto release(int id) -> void {
+  auto unlock(int id) -> void {
     flag[id] = false;  // I'm not interested.
   }
 
