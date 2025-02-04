@@ -23,8 +23,8 @@ class TicketLock {
   }
 
  private:
-  std::atomic<size_t> next_ticket;
-  std::atomic<size_t> now_serving;
+  std::atomic<size_t> next_ticket{0};
+  std::atomic<size_t> now_serving{0};
 };
 
 #endif  // TICKET_LOCK_H_

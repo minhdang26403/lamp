@@ -6,21 +6,21 @@
 
 class FilterLock {
  public:
-  FilterLock(int num_threads) : n(num_threads), level(n), victim(n) {
-    for (int i = 0; i < n; i++) {
+  FilterLock(int n) : num_threads(n), level(n), victim(n) {
+    for (int i = 0; i < num_threads; i++) {
       level[i] = 0;
     }
   }
 
   auto lock(int me) -> void {
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i < num_threads; i++) {
       level[me] = i;
       victim[i] = me;
       // spin while conflict exists
       bool conflict;
       do {
         conflict = false;
-        for (int k = 0; k < n; k++) {
+        for (int k = 0; k < num_threads; k++) {
           if (k != me && level[k] >= i && victim[i] == me) {
             conflict = true;
             break;
@@ -33,7 +33,7 @@ class FilterLock {
   auto unlock(int me) -> void { level[me] = 0; }
 
  private:
-  int n;
+  int num_threads;
   std::vector<std::atomic<int>> level;
   std::vector<std::atomic<int>> victim;
 };

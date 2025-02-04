@@ -22,8 +22,8 @@ class PetersonLock {
   }
 
  private:
-  std::array<std::atomic<bool>, 2> flag;
-  std::atomic<int> victim;
+  std::array<std::atomic<bool>, 2> flag{};
+  std::atomic<int> victim{-1};
 };
 
 #endif  // PETERSON_LOCK_H_
