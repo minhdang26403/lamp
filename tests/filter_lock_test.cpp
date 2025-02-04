@@ -9,43 +9,47 @@
  * at any time.
  */
 TEST(FilterLockTest, MutualExclusion) {
-  constexpr int num_threads = 8;
-  FilterLock lock(num_threads);
-  std::atomic<int> counter = 0;
-  constexpr int num_iterations = 1000;
+  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t num_iterations = 1000;
 
-  auto critical_section = [&](int id) {
-    for (int i = 0; i < num_iterations; i++) {
+  FilterLock lock(num_threads);
+  uint32_t counter = 0;
+
+  auto critical_section = [&](uint32_t id) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock(id);
-      int expected = counter.load();
+      uint32_t expected = counter++;
       std::this_thread::yield();  // Encourage race conditions
-      counter.store(expected + 1);
-      EXPECT_EQ(counter.load(), expected + 1);
+      EXPECT_EQ(counter, expected + 1);
       lock.unlock(id);
     }
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(critical_section, i);
   }
 
   for (auto& t : threads) {
     t.join();
   }
+
+  EXPECT_EQ(counter, num_iterations * num_threads);
 }
 
 /**
  * @brief This test checks correctness under high contention.
  */
 TEST(FilterLockTest, StressTest) {
-  constexpr int num_threads = 8;
-  FilterLock lock(num_threads);
-  std::atomic<int> counter = 0;
-  constexpr int num_iterations = 125000;
+  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t num_iterations = 125000;
 
-  auto worker = [&](int id) {
-    for (int i = 0; i < num_iterations; i++) {
+  FilterLock lock(num_threads);
+  std::atomic<uint32_t> counter = 0;
+
+  auto worker = [&](uint32_t id) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock(id);
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
@@ -54,7 +58,8 @@ TEST(FilterLockTest, StressTest) {
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(worker, i);
   }
 
@@ -70,18 +75,20 @@ TEST(FilterLockTest, StressTest) {
  * indefinitely.
  */
 TEST(FilterLockTest, NoDeadLock) {
-  constexpr int num_threads = 8;
-  FilterLock lock(num_threads);
-  std::atomic<bool> done = false;
+  constexpr uint32_t num_threads = 8;
 
-  auto worker = [&](int id) {
+  FilterLock lock(num_threads);
+  bool done = false;
+
+  auto worker = [&](uint32_t id) {
     lock.lock(id);
-    done.store(true, std::memory_order_relaxed);
+    done = true;
     lock.unlock(id);
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(worker, i);
   }
 
@@ -89,7 +96,7 @@ TEST(FilterLockTest, NoDeadLock) {
     t.join();
   }
 
-  EXPECT_TRUE(done.load());
+  EXPECT_TRUE(done);
 }
 
 /**
@@ -97,16 +104,20 @@ TEST(FilterLockTest, NoDeadLock) {
  * section.
  */
 TEST(FilterLockTest, NoStarvation) {
-  constexpr int num_threads = 8;
-  FilterLock lock(num_threads);
-  std::atomic<int> entry_count[num_threads];
+  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t num_iterations = 1000;
 
-  for (int i = 0; i < num_threads; i++) {
-    entry_count[i].store(0);
+  FilterLock lock(num_threads);
+  // We can use an array of non-atomic ints here, but we use
+  // atomic ints to make each thread do more work in its critical section.
+  std::atomic<uint32_t> entry_count[num_threads];
+
+  for (uint32_t i = 0; i < num_threads; i++) {
+    entry_count[i].store(0, std::memory_order_relaxed);
   }
 
-  auto worker = [&](int id) {
-    for (int i = 0; i < 1000; i++) {
+  auto worker = [&](uint32_t id) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock(id);
       entry_count[id].fetch_add(1, std::memory_order_relaxed);
       lock.unlock(id);
@@ -114,7 +125,8 @@ TEST(FilterLockTest, NoStarvation) {
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(worker, i);
   }
 
@@ -122,7 +134,7 @@ TEST(FilterLockTest, NoStarvation) {
     t.join();
   }
 
-  for (int i = 0; i < num_threads; i++) {
-    EXPECT_EQ(entry_count[i].load(), 1000);
+  for (uint32_t i = 0; i < num_threads; i++) {
+    EXPECT_EQ(entry_count[i].load(std::memory_order_relaxed), num_iterations);
   }
 }

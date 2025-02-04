@@ -7,43 +7,47 @@
  * at any time.
  */
 TEST(TicketLockTest, MutualExclusion) {
-  constexpr int num_threads = 8;
+  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t num_iterations = 1000;
+
   TicketLock lock;
-  std::atomic<int> counter = 0;
-  constexpr int num_iterations = 1000;
+  uint32_t counter = 0;
 
   auto critical_section = [&]() {
-    for (int i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock();
-      int expected = counter.load();
+      uint32_t expected = counter++;
       std::this_thread::yield();  // Encourage race conditions
-      counter.store(expected + 1);
-      EXPECT_EQ(counter.load(), expected + 1);
+      EXPECT_EQ(counter, expected + 1);
       lock.unlock();
     }
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(critical_section);
   }
 
   for (auto& t : threads) {
     t.join();
   }
+
+  EXPECT_EQ(counter, num_iterations * num_threads);
 }
 
 /**
  * @brief This test checks correctness under high contention.
  */
 TEST(TicketLockTest, StressTest) {
-  constexpr int num_threads = 8;
+  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t num_iterations = 125000;
+
   TicketLock lock;
-  std::atomic<int> counter = 0;
-  constexpr int num_iterations = 125000;
+  std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
-    for (int i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock();
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
@@ -52,7 +56,8 @@ TEST(TicketLockTest, StressTest) {
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(worker);
   }
 
@@ -68,18 +73,20 @@ TEST(TicketLockTest, StressTest) {
  * indefinitely.
  */
 TEST(FilterLockTest, NoDeadLock) {
-  constexpr int num_threads = 8;
+  constexpr uint32_t num_threads = 8;
+
   TicketLock lock;
-  std::atomic<bool> done = false;
+  bool done = false;
 
   auto worker = [&]() {
     lock.lock();
-    done.store(true, std::memory_order_relaxed);
+    done = true;
     lock.unlock();
   };
 
   std::vector<std::thread> threads;
-  for (int i = 0; i < num_threads; i++) {
+  threads.reserve(num_threads);
+  for (uint32_t i = 0; i < num_threads; i++) {
     threads.emplace_back(worker);
   }
 
@@ -87,6 +94,5 @@ TEST(FilterLockTest, NoDeadLock) {
     t.join();
   }
 
-  EXPECT_TRUE(done.load());
+  EXPECT_TRUE(done);
 }
-

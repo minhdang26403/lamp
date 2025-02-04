@@ -9,17 +9,17 @@
  * simultaneously.
  */
 TEST(PetersonLockTest, MutualExclusion) {
-  PetersonLock lock;
-  constexpr int num_iterations = 1000;
-  std::atomic<int> counter = 0;
+  constexpr uint32_t num_iterations = 1000;
 
-  auto critical_section = [&](int id) {
-    for (int i = 0; i < num_iterations; ++i) {
+  PetersonLock lock;
+  uint32_t counter = 0;
+
+  auto critical_section = [&](uint32_t id) {
+    for (uint32_t i = 0; i < num_iterations; ++i) {
       lock.lock(id);
-      int expected = counter.load();
+      uint32_t expected = counter++;
       std::this_thread::yield();  // Yield to encourage race conditions
-      counter.store(expected + 1);
-      EXPECT_EQ(counter.load(), expected + 1);
+      EXPECT_EQ(counter, expected + 1);
       lock.unlock(id);
     }
   };
@@ -29,6 +29,8 @@ TEST(PetersonLockTest, MutualExclusion) {
 
   t1.join();
   t2.join();
+
+  EXPECT_EQ(counter, num_iterations * 2);
 }
 
 /**
@@ -36,12 +38,13 @@ TEST(PetersonLockTest, MutualExclusion) {
  * without issues.
  */
 TEST(PetersonLockTest, StressTest) {
-  PetersonLock lock;
-  constexpr int num_iterations = 1000000;
-  std::atomic<int> counter = 0;
+  constexpr uint32_t num_iterations = 1000000;
 
-  auto worker = [&](int id) {
-    for (int i = 0; i < num_iterations; i++) {
+  PetersonLock lock;
+  std::atomic<uint32_t> counter = 0;
+
+  auto worker = [&](uint32_t id) {
+    for (uint32_t i = 0; i < num_iterations; i++) {
       lock.lock(id);
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
@@ -55,7 +58,7 @@ TEST(PetersonLockTest, StressTest) {
   t1.join();
   t2.join();
 
-  EXPECT_EQ(counter.load(), 0);
+  EXPECT_EQ(counter.load(std::memory_order_relaxed), 0);
 }
 
 /**
@@ -63,11 +66,11 @@ TEST(PetersonLockTest, StressTest) {
  */
 TEST(PetersonLockTest, NoDeadLock) {
   PetersonLock lock;
-  std::atomic<bool> done = false;
+  bool done = false;
 
   auto worker = [&](int id) {
     lock.lock(id);
-    done.store(true, std::memory_order_relaxed);
+    done = true;
     lock.unlock(id);
   };
 
@@ -77,5 +80,5 @@ TEST(PetersonLockTest, NoDeadLock) {
   t1.join();
   t2.join();
 
-  EXPECT_TRUE(done.load());
+  EXPECT_TRUE(done);
 }
