@@ -14,13 +14,13 @@ class TASLock : public Lock {
   TASLock() {}
 
   auto lock() -> void override {
-    while (state.test_and_set(std::memory_order_acquire)) {}
+    while (state_.test_and_set(std::memory_order_acquire)) {}
   }
 
-  auto unlock() -> void override { state.clear(std::memory_order_release); }
+  auto unlock() -> void override { state_.clear(std::memory_order_release); }
 
  private:
-  std::atomic_flag state{false};
+  std::atomic_flag state_{false};
 };
 
 #endif  // TAS_LOCK_H_
