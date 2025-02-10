@@ -3,7 +3,6 @@
 
 #include <atomic>
 
-#include "backoff.h"
 #include "lock.h"
 
 class MCSLock : public Lock {
@@ -12,10 +11,6 @@ class MCSLock : public Lock {
     std::atomic<bool> locked{false};
     std::atomic<QNode*> next{nullptr};
   };
-
-  MCSLock() {}
-
-  virtual ~MCSLock() {}
 
   auto lock() -> void override {
     QNode* qnode = &my_node_;

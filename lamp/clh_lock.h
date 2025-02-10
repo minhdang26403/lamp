@@ -23,7 +23,7 @@ class CLHLock : public Lock {
     tail_.store(qnode, std::memory_order_relaxed);
   }
 
-  virtual ~CLHLock() { delete tail_.load(std::memory_order_relaxed); }
+  ~CLHLock() { delete tail_.load(std::memory_order_relaxed); }
 
   auto lock() -> void override {
     QNode* qnode = new QNode(true);

@@ -6,8 +6,6 @@
 
 class PetersonLock {
  public:
-  PetersonLock() {}
-
   auto lock(uint32_t id) -> void {
     uint32_t j = 1 - id;
     flag_[id] = true;                    // I'm interested.

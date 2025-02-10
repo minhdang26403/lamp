@@ -13,8 +13,6 @@
  */
 class TTASLock : public Lock {
  public:
-  TTASLock() {}
-
   auto lock() -> void override {
     while (true) {
       while (state_.test(std::memory_order_relaxed)) {}

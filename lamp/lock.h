@@ -5,6 +5,7 @@
 
 class Lock {
  public:
+  ~Lock() = default;  // Ensure proper cleanup for derived classes
   virtual auto lock() -> void = 0;
   virtual auto unlock() -> void = 0;
 };

@@ -11,8 +11,6 @@
  */
 class TASLock : public Lock {
  public:
-  TASLock() {}
-
   auto lock() -> void override {
     while (state_.test_and_set(std::memory_order_acquire)) {}
   }
