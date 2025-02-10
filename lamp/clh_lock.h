@@ -5,17 +5,18 @@
 
 #include "lock.h"
 
-struct QNode {
-  QNode(bool value) : locked(value) {}
-
-  // Record the status of a thread:
-  // - If true, the corresponding thread has either acquired the lock or is
-  // waiting for the lock.
-  // - If false, the thread has released the lock.
-  std::atomic<bool> locked;
-};
-
 class CLHLock : public Lock {
+ private:
+  struct QNode {
+    QNode(bool value) : locked_(value) {}
+
+    // Record the status of a thread:
+    // - If true, the corresponding thread has either acquired the lock or is
+    // waiting for the lock.
+    // - If false, the thread has released the lock.
+    std::atomic<bool> locked_;
+  };
+
  public:
   CLHLock() {
     auto qnode = new QNode(false);
@@ -31,23 +32,22 @@ class CLHLock : public Lock {
 
     // Check if the predecessor thread has acquired the lock or is waiting for
     // the lock.
-    while (prev->locked.load(std::memory_order_acquire)) {}
+    while (prev->locked_.load(std::memory_order_acquire)) {}
 
     // This thread has acquired the lock and it is now safe to clean up the
     // memory of the previous node.
     delete prev;
 
     // Store my_node for unlock to use.
-    my_node = qnode;
+    my_node_ = qnode;
   }
 
   auto unlock() -> void override {
-    my_node->locked.store(false, std::memory_order_release);
+    my_node_->locked_.store(false, std::memory_order_release);
   }
 
  private:
-  QNode* my_node;
-  char padding[64];
+  QNode* my_node_;
   std::atomic<QNode*> tail_;
 };
 
