@@ -3,6 +3,7 @@ enable_testing()
 list(APPEND TESTS
   a_lock_test
   backoff_lock_test
+  clh_lock_test
   filter_lock_test
   peterson_lock_test
   tas_lock_test
