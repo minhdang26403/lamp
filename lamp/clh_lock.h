@@ -8,47 +8,48 @@
 class CLHLock : public Lock {
  private:
   struct QNode {
-    QNode(bool value) : locked_(value) {}
-
     // Record the status of a thread:
     // - If true, the corresponding thread has either acquired the lock or is
     // waiting for the lock.
     // - If false, the thread has released the lock.
-    std::atomic<bool> locked_;
+    std::atomic<bool> locked_{false};
   };
 
  public:
   CLHLock() {
-    auto qnode = new QNode(false);
+    auto qnode = new QNode();
     tail_.store(qnode, std::memory_order_relaxed);
   }
 
   ~CLHLock() { delete tail_.load(std::memory_order_relaxed); }
 
   auto lock() -> void override {
-    QNode* qnode = new QNode(true);
+    // Load the pointer to our node from the thread-local variable.
+    QNode* qnode = my_node_;
+    // Indicate our intention to acquire the lock.
+    qnode->locked_.store(true, std::memory_order_release);
+
     // Get the node that represents the state of the predecessor thread.
-    QNode* prev = tail_.exchange(qnode, std::memory_order_release);
+    QNode* pred = tail_.exchange(qnode, std::memory_order_relaxed);
+
+    // Save the pointer to the predecessor node.
+    my_pred_ = pred;
 
     // Check if the predecessor thread has acquired the lock or is waiting for
     // the lock.
-    while (prev->locked_.load(std::memory_order_acquire)) {}
-
-    // This thread has acquired the lock and it is now safe to clean up the
-    // memory of the previous node.
-    delete prev;
-
-    // Store my_node for unlock to use.
-    my_node_ = qnode;
+    while (pred->locked_.load(std::memory_order_acquire)) {}
   }
 
   auto unlock() -> void override {
     my_node_->locked_.store(false, std::memory_order_release);
+    // We can reuse the predecessor node as our own node.
+    my_node_ = my_pred_;
   }
 
  private:
-  QNode* my_node_;
   std::atomic<QNode*> tail_;
+  static thread_local QNode* my_pred_;
+  static thread_local QNode* my_node_;
 };
 
 #endif  // CLH_LOCK_H_

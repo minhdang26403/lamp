@@ -5,6 +5,9 @@
 
 #include "clh_lock.h"
 
+thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;
+thread_local CLHLock::QNode* CLHLock::my_node_ = new QNode();
+
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
