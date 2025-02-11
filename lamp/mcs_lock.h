@@ -32,7 +32,9 @@ class MCSLock : public Lock {
       auto expected = qnode;
       // need to have a separate variable `expected` so that failed
       // `compare_exchange_strong` does not modify the `qnode` variable.
-      if (tail_.compare_exchange_strong(expected, nullptr)) {
+      if (tail_.compare_exchange_strong(expected, nullptr,
+                                        std::memory_order_acq_rel,
+                                        std::memory_order_relaxed)) {
         return;
       }
       // wait until successor fills in its next field
