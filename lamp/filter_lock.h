@@ -6,14 +6,12 @@
 
 class FilterLock {
  public:
-  FilterLock(uint32_t n) : num_threads_(n), level_(n), victim_(n) {
-    for (uint32_t i = 0; i < num_threads_; i++) {
-      level_[i] = 0;
-    }
-  }
+  FilterLock(uint32_t n) : num_threads_(n), level_(n), victim_(n) {}
 
   auto lock(uint32_t me) -> void {
     for (uint32_t i = 1; i < num_threads_; i++) {
+      // For some reasons, got race condition bugs when trying to use weaker
+      // memory ordering, so stick with sequential consistency here.
       level_[me] = i;
       victim_[i] = me;
       // spin while conflict exists
