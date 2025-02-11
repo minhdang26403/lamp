@@ -7,8 +7,9 @@
 #include "lock.h"
 
 struct Flag {
-  bool flag{false};
-  char padding[63];
+  std::atomic<bool> flag{false};
+  // Force each flag to be on a new cache line
+  char padding[127];
 };
 
 /**
@@ -17,19 +18,19 @@ struct Flag {
 class ALock : public Lock {
  public:
   ALock(uint64_t capacity) : flag_(capacity), size_(capacity) {
-    flag_[0].flag = true;
+    flag_[0].flag.store(true, std::memory_order_relaxed);
   }
 
   auto lock() -> void override {
-    uint64_t slot = tail_.fetch_add(1) % size_;
+    uint64_t slot = tail_.fetch_add(1, std::memory_order_relaxed) % size_;
     my_slot_index = slot;
-    while (!flag_[slot].flag) {}
+    while (!flag_[slot].flag.load(std::memory_order_acquire)) {}
   }
 
   auto unlock() -> void override {
     uint64_t slot = my_slot_index;
-    flag_[slot].flag = false;
-    flag_[(slot + 1) % size_].flag = true;
+    flag_[slot].flag.store(false, std::memory_order_relaxed);
+    flag_[(slot + 1) % size_].flag.store(true, std::memory_order_release);
   }
 
   static thread_local uint64_t my_slot_index;
