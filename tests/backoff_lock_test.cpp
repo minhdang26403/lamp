@@ -1,6 +1,7 @@
 #include "backoff_lock.h"
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -10,14 +11,16 @@
  * at any time.
  */
 TEST(BackoffLockTest, MutualExclusion) {
-  constexpr uint32_t num_threads = 8;
-  constexpr uint32_t num_iterations = 10000;
+  constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kNumIterations = 10000;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
-    for (uint32_t i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
       uint32_t prev = counter;
       counter++;
@@ -28,8 +31,8 @@ TEST(BackoffLockTest, MutualExclusion) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(critical_section);
   }
 
@@ -37,7 +40,7 @@ TEST(BackoffLockTest, MutualExclusion) {
     t.join();
   }
 
-  EXPECT_EQ(counter, num_threads * num_iterations)
+  EXPECT_EQ(counter, kNumThreads * kNumIterations)
       << "Final counter value incorrect!";
 }
 
@@ -45,14 +48,16 @@ TEST(BackoffLockTest, MutualExclusion) {
  * @brief This test checks correctness under high contention.
  */
 TEST(BackoffLockTest, StressTest) {
-  constexpr uint32_t num_threads = 8;
-  constexpr uint32_t num_iterations = 125000;
+  constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kNumIterations = 125000;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
-    for (uint32_t i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
@@ -61,8 +66,8 @@ TEST(BackoffLockTest, StressTest) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(worker);
   }
 
@@ -78,9 +83,11 @@ TEST(BackoffLockTest, StressTest) {
  * indefinitely.
  */
 TEST(BackoffLockTest, NoDeadLock) {
-  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   bool done = false;
 
   auto worker = [&]() {
@@ -90,8 +97,8 @@ TEST(BackoffLockTest, NoDeadLock) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(worker);
   }
 

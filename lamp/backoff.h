@@ -13,21 +13,22 @@ static auto get_random_int64(int64_t upper_limit) -> int64_t {
   return dist(gen);
 }
 
+template<typename Duration>
 class Backoff {
  public:
   Backoff(int64_t min_delay, int64_t max_delay)
-      : min_delay_(min_delay), max_delay_(max_delay), limit_(min_delay_) {}
+      : kMinDelay(min_delay), kMaxDelay(max_delay), current_limit_(kMinDelay) {}
 
   auto backoff() -> void {
-    int64_t delay = get_random_int64(limit_);
-    limit_ = std::min(max_delay_, limit_ * 2);
-    std::this_thread::sleep_for(std::chrono::microseconds(delay));
+    int64_t delay = get_random_int64(current_limit_);
+    current_limit_ = std::min(kMaxDelay, current_limit_ * 2);
+    std::this_thread::sleep_for(Duration(delay));
   }
 
  private:
-  const int64_t min_delay_;
-  const int64_t max_delay_;
-  int64_t limit_;
+  const int64_t kMinDelay;
+  const int64_t kMaxDelay;
+  int64_t current_limit_;
 };
 
 #endif  // BACKOFF_H_
