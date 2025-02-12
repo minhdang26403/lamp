@@ -9,6 +9,7 @@ list(APPEND TESTS
   peterson_lock_test
   tas_lock_test
   ticket_lock_test
+  timeout_lock_test
   ttas_lock_test
 )
 
