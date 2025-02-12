@@ -8,28 +8,28 @@
 class MCSLock : public Lock {
  public:
   struct QNode {
-    std::atomic<bool> locked{false};
-    std::atomic<QNode*> next{nullptr};
+    std::atomic<bool> locked_{false};
+    std::atomic<QNode*> next_{nullptr};
   };
 
   auto lock() -> void override {
     QNode* qnode = &my_node_;
     QNode* pred = tail_.exchange(qnode, std::memory_order_acq_rel);
     if (pred != nullptr) {
-      qnode->locked.store(true, std::memory_order_relaxed);
+      qnode->locked_.store(true, std::memory_order_relaxed);
       // Use `memory_order_release` to ensure that when the next thread sees a
       // fully initialized `qnode`.
-      pred->next.store(qnode, std::memory_order_release);
+      pred->next_.store(qnode, std::memory_order_release);
       // wait until predecessor gives up the lock
-      while (qnode->locked.load(std::memory_order_acquire)) {}
+      while (qnode->locked_.load(std::memory_order_acquire)) {}
     }
   }
 
   auto unlock() -> void override {
     QNode* qnode = &my_node_;
-    QNode* succ = qnode->next.load();
+    QNode* succ = qnode->next_.load();
     if (succ == nullptr) {
-      auto expected = qnode;
+      QNode* expected = qnode;
       // need to have a separate variable `expected` so that failed
       // `compare_exchange_strong` does not modify the `qnode` variable.
       if (tail_.compare_exchange_strong(expected, nullptr,
@@ -39,11 +39,11 @@ class MCSLock : public Lock {
       }
       // wait until successor fills in its next field
       while (succ == nullptr) {
-        succ = qnode->next.load(std::memory_order_acquire);
+        succ = qnode->next_.load(std::memory_order_acquire);
       }
     }
-    succ->locked.store(false, std::memory_order_release);
-    qnode->next.store(nullptr, std::memory_order_relaxed);
+    succ->locked_.store(false, std::memory_order_release);
+    qnode->next_.store(nullptr, std::memory_order_relaxed);
   }
 
  private:

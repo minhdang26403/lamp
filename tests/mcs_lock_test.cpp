@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 #include <atomic>
-#include <format>
-#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -60,7 +58,6 @@ TEST(MCSLockTest, StressTest) {
       lock.lock();
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
-      // std::cout << std::format("In critical section [{}]\n", i);
       lock.unlock();
     }
   };
