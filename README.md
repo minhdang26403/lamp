@@ -5,3 +5,4 @@ Lamp is a library of concurrent data structures and synchronization primitives d
 TODO:
 - Benchmarks all lock algorithms
 - Add `try_lock()` method to the `Lock` interface
+- `TOLock` still has memory leak
