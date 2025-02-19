@@ -9,13 +9,13 @@
  * simultaneously.
  */
 TEST(PetersonLockTest, MutualExclusion) {
-  constexpr uint32_t num_iterations = 1000;
+  constexpr uint32_t kNumIterations = 1000;
 
   PetersonLock lock;
   uint32_t counter = 0;
 
   auto critical_section = [&](uint32_t id) {
-    for (uint32_t i = 0; i < num_iterations; ++i) {
+    for (uint32_t i = 0; i < kNumIterations; ++i) {
       lock.lock(id);
       uint32_t expected = counter++;
       std::this_thread::yield();  // Yield to encourage race conditions
@@ -30,7 +30,7 @@ TEST(PetersonLockTest, MutualExclusion) {
   t1.join();
   t2.join();
 
-  EXPECT_EQ(counter, num_iterations * 2);
+  EXPECT_EQ(counter, kNumIterations * 2);
 }
 
 /**
@@ -38,13 +38,13 @@ TEST(PetersonLockTest, MutualExclusion) {
  * without issues.
  */
 TEST(PetersonLockTest, StressTest) {
-  constexpr uint32_t num_iterations = 1000000;
+  constexpr uint32_t kNumIterations = 1000000;
 
   PetersonLock lock;
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&](uint32_t id) {
-    for (uint32_t i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock(id);
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);

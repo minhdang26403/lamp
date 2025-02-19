@@ -18,7 +18,7 @@ class TOLock {
     // - null: waiting for the lock.
     // - &AVAILABLE: release the lock.
     // - non-null: abandoned.
-    std::atomic<QNode*> pred{nullptr};
+    std::atomic<QNode*> pred_{nullptr};
   };
 
  public:
@@ -34,7 +34,7 @@ class TOLock {
     QNode* my_pred = tail_.exchange(qnode, std::memory_order_acq_rel);
 
     if (my_pred == nullptr ||
-        my_pred->pred.load(std::memory_order_acquire) == &AVAILABLE) {
+        my_pred->pred_.load(std::memory_order_acquire) == &AVAILABLE) {
       // We are the only thread in the queue, or the predecessor thread has
       // already released the lock.
       return true;
@@ -42,7 +42,7 @@ class TOLock {
 
     // Spin while waiting for the lock, but stop if the timeout is reached.
     while (std::chrono::steady_clock::now() - start < timeout_duration) {
-      QNode* pred_pred = my_pred->pred.load(std::memory_order_acquire);
+      QNode* pred_pred = my_pred->pred_.load(std::memory_order_acquire);
       if (pred_pred == &AVAILABLE) {
         // The predecessor thread has released the lock, so we can proceed.
         return true;
@@ -63,7 +63,7 @@ class TOLock {
     if (!tail_.compare_exchange_strong(expected, my_pred,
                                        std::memory_order_acquire,
                                        std::memory_order_relaxed)) {
-      qnode->pred.store(
+      qnode->pred_.store(
           my_pred, std::memory_order_relaxed);  // Mark ourselves as abandoned
     }
 
@@ -79,7 +79,7 @@ class TOLock {
     if (!tail_.compare_exchange_strong(expected, nullptr,
                                        std::memory_order_release,
                                        std::memory_order_relaxed)) {
-      qnode->pred.store(const_cast<QNode*>(&AVAILABLE),
+      qnode->pred_.store(const_cast<QNode*>(&AVAILABLE),
                         std::memory_order_release);
     }
   }

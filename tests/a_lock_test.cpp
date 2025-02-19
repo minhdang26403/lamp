@@ -13,14 +13,14 @@ thread_local uint64_t ALock::my_slot_index = 0;
  * at any time.
  */
 TEST(ALockTest, MutualExclusion) {
-  constexpr uint32_t num_threads = 8;
-  constexpr uint32_t num_iterations = 10000;
+  constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kNumIterations = 10000;
 
-  ALock lock{num_threads};
+  ALock lock{kNumThreads};
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
-    for (uint32_t i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
       uint32_t prev = counter;
       counter++;
@@ -31,8 +31,8 @@ TEST(ALockTest, MutualExclusion) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(critical_section);
   }
 
@@ -40,7 +40,7 @@ TEST(ALockTest, MutualExclusion) {
     t.join();
   }
 
-  EXPECT_EQ(counter, num_threads * num_iterations)
+  EXPECT_EQ(counter, kNumThreads * kNumIterations)
       << "Final counter value incorrect!";
 }
 
@@ -48,14 +48,14 @@ TEST(ALockTest, MutualExclusion) {
  * @brief This test checks correctness under high contention.
  */
 TEST(ALockTest, StressTest) {
-  constexpr uint32_t num_threads = 8;
-  constexpr uint32_t num_iterations = 125000;
+  constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kNumIterations = 125000;
 
-  ALock lock{num_threads};
+  ALock lock{kNumThreads};
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
-    for (uint32_t i = 0; i < num_iterations; i++) {
+    for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
       counter.fetch_add(1, std::memory_order_relaxed);
       counter.fetch_sub(1, std::memory_order_relaxed);
@@ -64,8 +64,8 @@ TEST(ALockTest, StressTest) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(worker);
   }
 
@@ -81,9 +81,9 @@ TEST(ALockTest, StressTest) {
  * indefinitely.
  */
 TEST(ALockTest, NoDeadLock) {
-  constexpr uint32_t num_threads = 8;
+  constexpr uint32_t kNumThreads = 8;
 
-  ALock lock{num_threads};
+  ALock lock{kNumThreads};
   bool done = false;
 
   auto worker = [&]() {
@@ -93,8 +93,8 @@ TEST(ALockTest, NoDeadLock) {
   };
 
   std::vector<std::thread> threads;
-  threads.reserve(num_threads);
-  for (uint32_t i = 0; i < num_threads; i++) {
+  threads.reserve(kNumThreads);
+  for (uint32_t i = 0; i < kNumThreads; i++) {
     threads.emplace_back(worker);
   }
 
