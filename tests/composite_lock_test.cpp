@@ -32,7 +32,7 @@ TEST(CompositeLockTest, MutualExclusion) {
       if (lock.try_lock(100us)) {
         uint32_t prev = counter;
         counter++;
-        std::this_thread::yield();
+        std::this_thread::yield();  // Yield to encourage race conditions
         EXPECT_EQ(counter, prev + 1) << "Race condition detected!";
         lock.unlock();
       } else {

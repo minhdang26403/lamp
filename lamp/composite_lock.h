@@ -29,9 +29,8 @@ class CompositeLock {
   enum State { FREE, WAITING, RELEASED, ABORTED };
 
   struct QNode {
-    std::atomic<State> state_{
-        FREE};  // Synchronize updates on QNode through this field.
-    QNode* pred_{nullptr};
+    std::atomic<State> state_{FREE};
+    std::atomic<QNode*> pred_{nullptr};
   };
 
  public:
@@ -60,8 +59,10 @@ class CompositeLock {
   }
 
   auto unlock() -> void {
-    my_node_->state_.store(RELEASED);
-    my_node_ = nullptr;
+    if (my_node_ != nullptr) {
+      my_node_->state_.store(RELEASED, std::memory_order_release);
+      my_node_ = nullptr;
+    }
   }
 
  private:
@@ -80,27 +81,28 @@ class CompositeLock {
     while (true) {
       State state = FREE;
       // Try to acquire the node.
-      if (node->state_.compare_exchange_strong(state, WAITING)) {
+      if (node->state_.compare_exchange_strong(state, WAITING,
+                                               std::memory_order_acq_rel,
+                                               std::memory_order_acquire)) {
         return node;
       }
 
-      uint64_t stamp;
-      QNode* cur_tail = tail_.get(stamp);
       // We may clean up a node if its state is ABORTED or RELEASED.
       if (state == ABORTED || state == RELEASED) {
+        uint64_t stamp;
+        QNode* cur_tail = tail_.get(stamp);
         // Only clean up the last queue node to avoid synchronization
         // conflicts with other threads.
         if (node == cur_tail) {
-          QNode* my_pred = nullptr;
-          if (state == ABORTED) {
-            // If the node's state is ABORTED, it may have a predecessor. If its
-            // state is RELEASED, this node is the only node in the queue since
-            // all nodes before it must be FREE (so that this node can go from
-            // WAITING to RELEASED), so let `my_pred` be nullptr in that case.
-            my_pred = node->pred_;
-          }
+          // If the node's state is ABORTED, it may have a predecessor. If its
+          // state is RELEASED, this node is the only node in the queue since
+          // all nodes before it must be FREE (so that this node can go from
+          // WAITING to RELEASED), so let `my_pred` be nullptr in that case.
+          QNode* my_pred = (state == ABORTED)
+                               ? node->pred_.load(std::memory_order_relaxed)
+                               : nullptr;
           if (tail_.compare_and_set(cur_tail, my_pred, stamp, stamp + 1)) {
-            node->state_.store(WAITING);
+            node->state_.store(WAITING, std::memory_order_release);
             return node;
           }
         }
@@ -124,7 +126,7 @@ class CompositeLock {
     do {
       cur_tail = tail_.get(stamp);
       if (timeout(start, timeout_duration)) {
-        node->state_.store(FREE);
+        node->state_.store(FREE, std::memory_order_release);
         throw TimeoutException(
             "Thread times out while trying to splice the acquired node into "
             "the waiting queue");
@@ -145,33 +147,65 @@ class CompositeLock {
       return;
     }
 
-    State pred_state = pred->state_.load();
-    while (pred_state != RELEASED) {
-      if (pred_state == ABORTED) {
-        // The predecessor aborted, so wait on predecessor's predecessor
-        // instead.
-        QNode* temp = pred;
-        // IMPORTANT: We must read the `pred_` field before publishing our state
-        // as FREE to other threads.
-        pred = pred->pred_;
-        temp->state_.store(FREE);
+    while (true) {
+      State pred_state = pred->state_.load(std::memory_order_acquire);
+      while (pred_state != RELEASED) {
+        if (pred_state == ABORTED) {
+          QNode* temp = pred;
+          QNode* next_pred = temp->pred_.load(std::memory_order_relaxed);
+          if (temp->state_.compare_exchange_strong(pred_state, FREE,
+                                                   std::memory_order_acq_rel,
+                                                   std::memory_order_relaxed)) {
+            pred = next_pred;
+          }
+        }
+
+        if (timeout(start, timeout_duration)) {
+          node->pred_.store(pred, std::memory_order_relaxed);
+          node->state_.store(ABORTED, std::memory_order_release);
+          throw TimeoutException("Thread timed out waiting for predecessor");
+        }
+        pred_state = pred->state_.load(std::memory_order_acquire);
       }
 
+      // Only one thread claims the lock by freeing pred
+      State expected = RELEASED;
+      if (pred->state_.compare_exchange_strong(expected, FREE,
+                                               std::memory_order_acq_rel,
+                                               std::memory_order_relaxed)) {
+        // Verify node is at head
+        uint64_t stamp;
+        QNode* cur_tail = tail_.get(stamp);
+        if (cur_tail == node) {
+          my_node_ = node;
+          return;
+        }
+        // If not at tail, retry with updated pred
+        pred = cur_tail ? cur_tail->pred_.load(std::memory_order_relaxed)
+                        : nullptr;
+        if (pred == nullptr) {
+          my_node_ = node;
+          return;
+        }
+        continue;
+      }
+
+      // If CAS fails, another thread claimed it; update pred and retry
       if (timeout(start, timeout_duration)) {
-        // Set the predecessor pointer so that later nodes can skip waiting on
-        // this node.
-        node->pred_ = pred;
-        node->state_.store(ABORTED);
-        throw TimeoutException(
-            "Thread times out while waiting for predecessor to release the "
-            "lock");
+        node->pred_.store(pred, std::memory_order_relaxed);
+        node->state_.store(ABORTED, std::memory_order_release);
+        throw TimeoutException("Predecessor released but not at head");
       }
-      pred_state = pred->state_.load();
+      uint64_t stamp;
+      QNode* new_tail = tail_.get(stamp);
+      pred = (new_tail == node || new_tail == nullptr)
+                 ? nullptr
+                 : new_tail->pred_.load(std::memory_order_relaxed);
+      if (pred == nullptr) {
+        my_node_ = node;
+        return;
+      }
     }
-
-    pred->state_.store(FREE);
-    my_node_ = node;
-    return;
   }
 
   const size_t kSize;
