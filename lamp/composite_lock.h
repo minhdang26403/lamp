@@ -151,13 +151,8 @@ class CompositeLock {
       State pred_state = pred->state_.load(std::memory_order_acquire);
       while (pred_state != RELEASED) {
         if (pred_state == ABORTED) {
-          QNode* temp = pred;
-          QNode* next_pred = temp->pred_.load(std::memory_order_relaxed);
-          if (temp->state_.compare_exchange_strong(pred_state, FREE,
-                                                   std::memory_order_acq_rel,
-                                                   std::memory_order_relaxed)) {
-            pred = next_pred;
-          }
+          pred->state_.store(FREE);
+          pred = pred->pred_.load();
         }
 
         if (timeout(start, timeout_duration)) {
@@ -188,22 +183,6 @@ class CompositeLock {
           return;
         }
         continue;
-      }
-
-      // If CAS fails, another thread claimed it; update pred and retry
-      if (timeout(start, timeout_duration)) {
-        node->pred_.store(pred, std::memory_order_relaxed);
-        node->state_.store(ABORTED, std::memory_order_release);
-        throw TimeoutException("Predecessor released but not at head");
-      }
-      uint64_t stamp;
-      QNode* new_tail = tail_.get(stamp);
-      pred = (new_tail == node || new_tail == nullptr)
-                 ? nullptr
-                 : new_tail->pred_.load(std::memory_order_relaxed);
-      if (pred == nullptr) {
-        my_node_ = node;
-        return;
       }
     }
   }
