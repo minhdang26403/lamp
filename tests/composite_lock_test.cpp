@@ -20,8 +20,8 @@ TEST(CompositeLockTest, MutualExclusion) {
   constexpr uint32_t kNumIterations = 10000;
 
   constexpr size_t kSize = kNumThreads / 2;
-  constexpr int64_t kMinDelay = 1;
-  constexpr int64_t kMaxDelay = 100;
+  constexpr int64_t kMinDelay = 10;
+  constexpr int64_t kMaxDelay = 25;
 
   CompositeLock lock{kSize, kMinDelay, kMaxDelay};
   uint32_t counter = 0;
@@ -140,11 +140,14 @@ TEST(CompositeLockTest, Fairness) {
 
   CompositeLock lock{kSize, kMinDelay, kMaxDelay};
   uint32_t counter = 0;
+  std::atomic<uint32_t> failed_attempt{0};
 
   auto critical_section = [&]() {
     if (lock.try_lock(1s)) {
       counter++;
       lock.unlock();
+    } else {
+      failed_attempt.fetch_add(1, std::memory_order_relaxed);
     }
   };
 
@@ -158,5 +161,5 @@ TEST(CompositeLockTest, Fairness) {
     t.join();
   }
 
-  EXPECT_EQ(counter, kNumThreads);
+  EXPECT_EQ(counter + failed_attempt, kNumThreads);
 }

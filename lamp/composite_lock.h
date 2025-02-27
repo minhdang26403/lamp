@@ -75,7 +75,8 @@ class CompositeLock {
   template<typename Duration>
   auto acquire_qnode(const TimePoint<Duration>& start,
                      const Duration& timeout_duration) -> QNode* {
-    QNode* node = &waiting_[get_random_int<size_t>(0, kSize - 1)];
+    size_t index = get_random_int<size_t>(0, kSize - 1);
+    QNode* node = &waiting_[index];
     Backoff<Duration> backoff{kMinDelay, kMaxDelay};
 
     while (true) {
@@ -85,27 +86,6 @@ class CompositeLock {
                                                std::memory_order_acq_rel,
                                                std::memory_order_acquire)) {
         return node;
-      }
-
-      // We may clean up a node if its state is ABORTED or RELEASED.
-      if (state == ABORTED || state == RELEASED) {
-        uint64_t stamp;
-        QNode* cur_tail = tail_.get(stamp);
-        // Only clean up the last queue node to avoid synchronization
-        // conflicts with other threads.
-        if (node == cur_tail) {
-          // If the node's state is ABORTED, it may have a predecessor. If its
-          // state is RELEASED, this node is the only node in the queue since
-          // all nodes before it must be FREE (so that this node can go from
-          // WAITING to RELEASED), so let `my_pred` be nullptr in that case.
-          QNode* my_pred = (state == ABORTED)
-                               ? node->pred_.load(std::memory_order_relaxed)
-                               : nullptr;
-          if (tail_.compare_and_set(cur_tail, my_pred, stamp, stamp + 1)) {
-            node->state_.store(WAITING, std::memory_order_release);
-            return node;
-          }
-        }
       }
 
       // Backoff and retries if the allocated node is WAITING.
@@ -147,44 +127,26 @@ class CompositeLock {
       return;
     }
 
-    while (true) {
-      State pred_state = pred->state_.load(std::memory_order_acquire);
-      while (pred_state != RELEASED) {
-        if (pred_state == ABORTED) {
-          pred->state_.store(FREE);
-          pred = pred->pred_.load();
-        }
-
-        if (timeout(start, timeout_duration)) {
-          node->pred_.store(pred, std::memory_order_relaxed);
-          node->state_.store(ABORTED, std::memory_order_release);
-          throw TimeoutException("Thread timed out waiting for predecessor");
-        }
-        pred_state = pred->state_.load(std::memory_order_acquire);
+    State pred_state = pred->state_.load(std::memory_order_acquire);
+    while (pred_state != RELEASED) {
+      if (pred_state == ABORTED) {
+        QNode* next_pred = pred->pred_.load(std::memory_order_relaxed);
+        pred->state_.store(FREE, std::memory_order_release);
+        pred = next_pred;
       }
 
-      // Only one thread claims the lock by freeing pred
-      State expected = RELEASED;
-      if (pred->state_.compare_exchange_strong(expected, FREE,
-                                               std::memory_order_acq_rel,
-                                               std::memory_order_relaxed)) {
-        // Verify node is at head
-        uint64_t stamp;
-        QNode* cur_tail = tail_.get(stamp);
-        if (cur_tail == node) {
-          my_node_ = node;
-          return;
-        }
-        // If not at tail, retry with updated pred
-        pred = cur_tail ? cur_tail->pred_.load(std::memory_order_relaxed)
-                        : nullptr;
-        if (pred == nullptr) {
-          my_node_ = node;
-          return;
-        }
-        continue;
+      if (timeout(start, timeout_duration)) {
+        node->pred_.store(pred, std::memory_order_relaxed);
+        node->state_.store(ABORTED, std::memory_order_release);
+        throw TimeoutException("Thread timed out waiting for predecessor");
       }
+
+      pred_state = pred->state_.load(std::memory_order_acquire);
     }
+
+    pred->state_.store(FREE, std::memory_order_release);
+    my_node_ = node;
+    return;
   }
 
   const size_t kSize;
