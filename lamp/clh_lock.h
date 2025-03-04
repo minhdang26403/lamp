@@ -2,7 +2,9 @@
 #define CLH_LOCK_H_
 
 #include <atomic>
+#include <chrono>
 
+#include "backoff.h"
 #include "lock.h"
 
 class CLHLock : public Lock {
@@ -37,7 +39,10 @@ class CLHLock : public Lock {
 
     // Check if the predecessor thread has acquired the lock or is waiting for
     // the lock.
-    while (pred->locked_.load(std::memory_order_acquire)) {}
+    Backoff<std::chrono::microseconds> backoff{5, 15};
+    while (pred->locked_.load(std::memory_order_acquire)) {
+      backoff.backoff();
+    }
   }
 
   auto unlock() -> void override {
