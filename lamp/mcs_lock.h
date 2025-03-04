@@ -23,7 +23,7 @@ class MCSLock : public Lock {
       // fully initialized `qnode`.
       pred->next_.store(qnode, std::memory_order_release);
       // wait until predecessor gives up the lock
-      Backoff<std::chrono::microseconds> backoff{5, 15};
+      Backoff<std::chrono::microseconds> backoff{5, 25};
       while (qnode->locked_.load(std::memory_order_acquire)) {
         backoff.backoff();
       }

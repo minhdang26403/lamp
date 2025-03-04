@@ -39,7 +39,7 @@ class CLHLock : public Lock {
 
     // Check if the predecessor thread has acquired the lock or is waiting for
     // the lock.
-    Backoff<std::chrono::microseconds> backoff{5, 15};
+    Backoff<std::chrono::microseconds> backoff{5, 25};
     while (pred->locked_.load(std::memory_order_acquire)) {
       backoff.backoff();
     }
