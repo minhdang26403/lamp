@@ -4,8 +4,6 @@
 #include <atomic>
 #include <chrono>
 
-#include "lock.h"
-
 /**
  * @brief A queue lock based on the CLHLock class that supports wait-free
  * timeout even for threads in the middle of the list of nodes waiting for the

@@ -2,7 +2,6 @@
 #define BACKOFF_LOCK_H_
 
 #include <atomic>
-#include <chrono>
 
 #include "backoff.h"
 #include "lock.h"
