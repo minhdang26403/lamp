@@ -1,14 +1,15 @@
-#include <benchmark/benchmark.h>
+#include "lock/backoff_lock.h"
+#include "lock/clh_lock.h"
+#include "lock/mcs_lock.h"
+#include "lock/tas_lock.h"
+#include "lock/ticket_lock.h"
+#include "lock/ttas_lock.h"
+
 #include <mutex>
 #include <thread>
 #include <vector>
 
-#include "backoff_lock.h"
-#include "clh_lock.h"
-#include "mcs_lock.h"
-#include "tas_lock.h"
-#include "ticket_lock.h"
-#include "ttas_lock.h"
+#include <benchmark/benchmark.h>
 
 thread_local MCSLock::QNode MCSLock::my_node_;
 thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;

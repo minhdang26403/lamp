@@ -1,12 +1,14 @@
-#include <gtest/gtest.h>
+#include "lock/timeout_lock.h"
+
 #include <atomic>
 #include <thread>
 #include <vector>
 
-#include "composite_lock.h"
+#include <gtest/gtest.h>
 
 // Define static variables
-thread_local CompositeLock::QNode* CompositeLock::my_node_ = nullptr;
+thread_local TOLock::QNode* TOLock::my_node_;
+const TOLock::QNode TOLock::AVAILABLE;
 
 using namespace std::chrono_literals;
 
@@ -14,15 +16,11 @@ using namespace std::chrono_literals;
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
-TEST(CompositeLockTest, MutualExclusion) {
+TEST(TOLockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 10000;
 
-  constexpr size_t kSize = kNumThreads / 2;
-  constexpr int64_t kMinDelay = 10;
-  constexpr int64_t kMaxDelay = 25;
-
-  CompositeLock lock{kSize, kMinDelay, kMaxDelay};
+  TOLock lock;
   uint32_t counter = 0;
   std::atomic<uint32_t> failed_attempt{0};
 
@@ -31,7 +29,7 @@ TEST(CompositeLockTest, MutualExclusion) {
       if (lock.try_lock(100us)) {
         uint32_t prev = counter;
         counter++;
-        std::this_thread::yield();  // Yield to encourage race conditions
+        std::this_thread::yield();
         EXPECT_EQ(counter, prev + 1) << "Race condition detected!";
         lock.unlock();
       } else {
@@ -50,8 +48,6 @@ TEST(CompositeLockTest, MutualExclusion) {
     t.join();
   }
 
-  std::cout << counter << ' ' << failed_attempt << '\n';
-
   EXPECT_EQ(counter + failed_attempt, kNumThreads * kNumIterations)
       << "Final counter value incorrect!";
 }
@@ -59,15 +55,11 @@ TEST(CompositeLockTest, MutualExclusion) {
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(CompositeLockTest, StressTest) {
+TEST(TOLockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
 
-  constexpr size_t kSize = kNumThreads / 2;
-  constexpr int64_t kMinDelay = 1;
-  constexpr int64_t kMaxDelay = 100;
-
-  CompositeLock lock{kSize, kMinDelay, kMaxDelay};
+  TOLock lock;
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -97,14 +89,10 @@ TEST(CompositeLockTest, StressTest) {
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(CompositeLockTest, NoDeadLock) {
+TEST(TOLockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
 
-  constexpr size_t kSize = kNumThreads / 2;
-  constexpr int64_t kMinDelay = 1;
-  constexpr int64_t kMaxDelay = 100;
-
-  CompositeLock lock{kSize, kMinDelay, kMaxDelay};
+  TOLock lock;
   bool done = false;
 
   auto worker = [&]() {
@@ -130,23 +118,16 @@ TEST(CompositeLockTest, NoDeadLock) {
 /**
  * @brief Test fairness by ensuring all threads eventually acquire the lock.
  */
-TEST(CompositeLockTest, Fairness) {
+TEST(TOLockTest, Fairness) {
   constexpr uint32_t kNumThreads = 8;
 
-  constexpr size_t kSize = kNumThreads / 2;
-  constexpr int64_t kMinDelay = 1;
-  constexpr int64_t kMaxDelay = 100;
-
-  CompositeLock lock{kSize, kMinDelay, kMaxDelay};
+  TOLock lock;
   uint32_t counter = 0;
-  std::atomic<uint32_t> failed_attempt{0};
 
   auto critical_section = [&]() {
     if (lock.try_lock(1s)) {
       counter++;
       lock.unlock();
-    } else {
-      failed_attempt.fetch_add(1, std::memory_order_relaxed);
     }
   };
 
@@ -160,5 +141,5 @@ TEST(CompositeLockTest, Fairness) {
     t.join();
   }
 
-  EXPECT_EQ(counter + failed_attempt, kNumThreads);
+  EXPECT_EQ(counter, kNumThreads);
 }

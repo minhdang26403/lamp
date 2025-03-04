@@ -1,22 +1,23 @@
-#include "a_lock.h"
+#include "lock/clh_lock.h"
 
 #include <atomic>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-// Definition of the thread-local static member (outside the class)
-thread_local uint64_t ALock::my_slot_index = 0;
+thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;
+thread_local CLHLock::QNode* CLHLock::my_node_ = new QNode();
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
-TEST(ALockTest, MutualExclusion) {
+ TEST(CLHLockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 10000;
 
-  ALock lock{kNumThreads};
+  CLHLock lock;
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
@@ -47,11 +48,11 @@ TEST(ALockTest, MutualExclusion) {
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(ALockTest, StressTest) {
+TEST(CLHLockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
 
-  ALock lock{kNumThreads};
+  CLHLock lock;
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -80,10 +81,10 @@ TEST(ALockTest, StressTest) {
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(ALockTest, NoDeadLock) {
+TEST(CLHLockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
 
-  ALock lock{kNumThreads};
+  CLHLock lock;
   bool done = false;
 
   auto worker = [&]() {

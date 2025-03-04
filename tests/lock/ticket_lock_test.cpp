@@ -1,30 +1,24 @@
+#include "lock/ticket_lock.h"
+
 #include <gtest/gtest.h>
-#include <atomic>
-#include <thread>
-#include <vector>
-
-#include "mcs_lock.h"
-
-thread_local MCSLock::QNode MCSLock::my_node_;
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
-TEST(MCSLockTest, MutualExclusion) {
+TEST(TicketLockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
-  constexpr uint32_t kNumIterations = 10000;
+  constexpr uint32_t kNumIterations = 1000;
 
-  MCSLock lock;
+  TicketLock lock;
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
     for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
-      uint32_t prev = counter;
-      counter++;
-      std::this_thread::yield();
-      EXPECT_EQ(counter, prev + 1) << "Race condition detected!";
+      uint32_t expected = counter++;
+      std::this_thread::yield();  // Encourage race conditions
+      EXPECT_EQ(counter, expected + 1);
       lock.unlock();
     }
   };
@@ -39,18 +33,17 @@ TEST(MCSLockTest, MutualExclusion) {
     t.join();
   }
 
-  EXPECT_EQ(counter, kNumThreads * kNumIterations)
-      << "Final counter value incorrect!";
+  EXPECT_EQ(counter, kNumIterations * kNumThreads);
 }
 
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(MCSLockTest, StressTest) {
+TEST(TicketLockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
 
-  MCSLock lock;
+  TicketLock lock;
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -72,17 +65,17 @@ TEST(MCSLockTest, StressTest) {
     t.join();
   }
 
-  EXPECT_EQ(counter.load(std::memory_order_relaxed), 0);
+  EXPECT_EQ(counter.load(), 0);
 }
 
 /**
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(MCSLockTest, NoDeadLock) {
+TEST(FilterLockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
 
-  MCSLock lock;
+  TicketLock lock;
   bool done = false;
 
   auto worker = [&]() {

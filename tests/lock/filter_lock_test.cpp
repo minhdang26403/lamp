@@ -1,8 +1,9 @@
-#include "filter_lock.h"
+#include "lock/filter_lock.h"
 
-#include <gtest/gtest.h>
 #include <atomic>
 #include <thread>
+
+#include <gtest/gtest.h>
 
 /**
  * @brief This test ensures that at most one thread is in the critical section

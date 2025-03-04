@@ -4,8 +4,8 @@
 #include <atomic>
 #include <chrono>
 
-#include "backoff.h"
-#include "lock.h"
+#include "lock/lock.h"
+#include "util/backoff.h"
 
 /**
  * @brief A test-and-test-and-set lock with an exponential backoff mechanism.

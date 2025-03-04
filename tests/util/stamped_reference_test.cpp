@@ -1,7 +1,9 @@
-#include "stamped_reference.h"
-#include <gtest/gtest.h>
+#include "util/stamped_reference.h"
+
 #include <atomic>
 #include <thread>
+
+#include <gtest/gtest.h>
 
 class StampedReferenceTest : public ::testing::Test {
  protected:

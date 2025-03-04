@@ -4,8 +4,8 @@
 #include <atomic>
 #include <chrono>
 
-#include "lock.h"
-#include "backoff.h"
+#include "lock/lock.h"
+#include "util/backoff.h"
 
 class MCSLock : public Lock {
  public:

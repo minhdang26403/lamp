@@ -1,4 +1,4 @@
-#include "ttas_lock.h"
+#include "lock/ttas_lock.h"
 
 #include <atomic>
 #include <thread>

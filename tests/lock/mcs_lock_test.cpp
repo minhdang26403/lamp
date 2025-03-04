@@ -1,22 +1,22 @@
-#include "backoff_lock.h"
+#include "lock/mcs_lock.h"
 
 #include <atomic>
-#include <chrono>
 #include <thread>
+#include <vector>
 
 #include <gtest/gtest.h>
+
+thread_local MCSLock::QNode MCSLock::my_node_;
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
-TEST(BackoffLockTest, MutualExclusion) {
+TEST(MCSLockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 10000;
-  constexpr uint32_t kMinDelay = 1;
-  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
+  MCSLock lock;
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
@@ -47,13 +47,11 @@ TEST(BackoffLockTest, MutualExclusion) {
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(BackoffLockTest, StressTest) {
+TEST(MCSLockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
-  constexpr uint32_t kMinDelay = 1;
-  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
+  MCSLock lock;
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -82,12 +80,10 @@ TEST(BackoffLockTest, StressTest) {
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(BackoffLockTest, NoDeadLock) {
+TEST(MCSLockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
-  constexpr uint32_t kMinDelay = 1;
-  constexpr uint32_t kMaxDelay = 100;
 
-  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
+  MCSLock lock;
   bool done = false;
 
   auto worker = [&]() {

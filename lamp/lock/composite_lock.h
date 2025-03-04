@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "backoff.h"
-#include "stamped_reference.h"
+#include "util/backoff.h"
+#include "util/stamped_reference.h"
 
 template<typename Duration>
 using TimePoint = std::chrono::time_point<std::chrono::steady_clock, Duration>;

@@ -1,22 +1,22 @@
-#include <gtest/gtest.h>
+#include "lock/backoff_lock.h"
+
 #include <atomic>
+#include <chrono>
 #include <thread>
-#include <vector>
 
-#include "clh_lock.h"
-
-thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;
-thread_local CLHLock::QNode* CLHLock::my_node_ = new QNode();
+#include <gtest/gtest.h>
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
- TEST(CLHLockTest, MutualExclusion) {
+TEST(BackoffLockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 10000;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  CLHLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
@@ -47,11 +47,13 @@ thread_local CLHLock::QNode* CLHLock::my_node_ = new QNode();
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(CLHLockTest, StressTest) {
+TEST(BackoffLockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  CLHLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -80,10 +82,12 @@ TEST(CLHLockTest, StressTest) {
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(CLHLockTest, NoDeadLock) {
+TEST(BackoffLockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
+  constexpr uint32_t kMinDelay = 1;
+  constexpr uint32_t kMaxDelay = 100;
 
-  CLHLock lock;
+  BackoffLock<std::chrono::microseconds> lock{kMinDelay, kMaxDelay};
   bool done = false;
 
   auto worker = [&]() {

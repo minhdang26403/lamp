@@ -1,24 +1,31 @@
-#include "ticket_lock.h"
+#include "lock/a_lock.h"
+
+#include <atomic>
+#include <thread>
 
 #include <gtest/gtest.h>
+
+// Definition of the thread-local static member (outside the class)
+thread_local uint64_t ALock::my_slot_index = 0;
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
  * at any time.
  */
-TEST(TicketLockTest, MutualExclusion) {
+TEST(ALockTest, MutualExclusion) {
   constexpr uint32_t kNumThreads = 8;
-  constexpr uint32_t kNumIterations = 1000;
+  constexpr uint32_t kNumIterations = 10000;
 
-  TicketLock lock;
+  ALock lock{kNumThreads};
   uint32_t counter = 0;
 
   auto critical_section = [&]() {
     for (uint32_t i = 0; i < kNumIterations; i++) {
       lock.lock();
-      uint32_t expected = counter++;
-      std::this_thread::yield();  // Encourage race conditions
-      EXPECT_EQ(counter, expected + 1);
+      uint32_t prev = counter;
+      counter++;
+      std::this_thread::yield();
+      EXPECT_EQ(counter, prev + 1) << "Race condition detected!";
       lock.unlock();
     }
   };
@@ -33,17 +40,18 @@ TEST(TicketLockTest, MutualExclusion) {
     t.join();
   }
 
-  EXPECT_EQ(counter, kNumIterations * kNumThreads);
+  EXPECT_EQ(counter, kNumThreads * kNumIterations)
+      << "Final counter value incorrect!";
 }
 
 /**
  * @brief This test checks correctness under high contention.
  */
-TEST(TicketLockTest, StressTest) {
+TEST(ALockTest, StressTest) {
   constexpr uint32_t kNumThreads = 8;
   constexpr uint32_t kNumIterations = 125000;
 
-  TicketLock lock;
+  ALock lock{kNumThreads};
   std::atomic<uint32_t> counter = 0;
 
   auto worker = [&]() {
@@ -65,17 +73,17 @@ TEST(TicketLockTest, StressTest) {
     t.join();
   }
 
-  EXPECT_EQ(counter.load(), 0);
+  EXPECT_EQ(counter.load(std::memory_order_relaxed), 0);
 }
 
 /**
  * @brief This test ensures all threads make progress and don't get stuck
  * indefinitely.
  */
-TEST(FilterLockTest, NoDeadLock) {
+TEST(ALockTest, NoDeadLock) {
   constexpr uint32_t kNumThreads = 8;
 
-  TicketLock lock;
+  ALock lock{kNumThreads};
   bool done = false;
 
   auto worker = [&]() {
