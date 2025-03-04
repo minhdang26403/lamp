@@ -1,0 +1,8 @@
+list(APPEND BENCHMARKS
+  lock_benchmark
+)
+
+foreach(BENCHMARK IN LISTS BENCHMARKS)
+  add_executable(${BENCHMARK} ${BENCHMARK}.cpp)
+  target_link_libraries(${BENCHMARK} benchmark::benchmark)
+endforeach()

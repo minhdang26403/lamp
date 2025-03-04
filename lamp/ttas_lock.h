@@ -1,5 +1,5 @@
-#ifndef TAS_LOCK_H_
-#define TAS_LOCK_H_
+#ifndef TTAS_LOCK_H_
+#define TTAS_LOCK_H_
 
 #include <atomic>
 
@@ -28,4 +28,4 @@ class TTASLock : public Lock {
   std::atomic_flag state_{false};
 };
 
-#endif  // TAS_LOCK_H_
+#endif  // TTAS_LOCK_H_

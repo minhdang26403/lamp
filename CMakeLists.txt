@@ -40,6 +40,10 @@ message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 message(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 
+# Ensure consistent visibility settings across the project
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
+
 # Output directory
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -63,13 +67,24 @@ else()
   message(STATUS "lamp/main found cpplint at ${CPPLINT_BIN}")
 endif()
 
-# GoogleTest
+# FetchContent module to download and build Google Benchmark and GoogleTest
 include(FetchContent)
+
+# GoogleTest
 FetchContent_Declare(
   googletest
-  URL https://github.com/google/googletest/archive/f8d7d77.zip
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.16.0 # Use the main branch or specify a specific commit/tag
 )
-FetchContent_MakeAvailable(googletest)
+
+# Google Benchmark
+FetchContent_Declare(
+  googlebenchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_TAG v1.9.1 # Use the main branch or specify a specific commit/tag
+)
+
+FetchContent_MakeAvailable(googletest googlebenchmark)
 
 include(GoogleTest)
 

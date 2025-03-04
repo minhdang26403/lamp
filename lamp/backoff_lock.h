@@ -2,6 +2,7 @@
 #define BACKOFF_LOCK_H_
 
 #include <atomic>
+#include <chrono>
 
 #include "backoff.h"
 #include "lock.h"
@@ -9,9 +10,11 @@
 /**
  * @brief A test-and-test-and-set lock with an exponential backoff mechanism.
  */
-template<typename Duration>
+template<typename Duration = std::chrono::microseconds>
 class BackoffLock : public Lock {
  public:
+  BackoffLock() = default;
+
   BackoffLock(int64_t min_delay, int64_t max_delay)
       : kMinDelay(min_delay), kMaxDelay(max_delay) {}
 
@@ -30,8 +33,9 @@ class BackoffLock : public Lock {
 
  private:
   std::atomic_flag state_{false};
-  const int64_t kMinDelay;
-  const int64_t kMaxDelay;
+  // Default backoff duration ranges from 5ms - 15ms
+  const int64_t kMinDelay{5};
+  const int64_t kMaxDelay{15};
 };
 
 #endif  // BACKOFF_LOCK_H_
