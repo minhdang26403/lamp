@@ -2,8 +2,9 @@ list(APPEND LOCK_TESTS
   a_lock_test
   backoff_lock_test
   clh_lock_test
-  condition_variable_test
   composite_lock_test
+  condition_variable_test
+  fifo_read_write_lock_test
   filter_lock_test
   mcs_lock_test
   peterson_lock_test
