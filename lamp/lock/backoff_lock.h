@@ -33,7 +33,7 @@ class BackoffLock : public Lock {
 
  private:
   std::atomic_flag state_{false};
-  // Default backoff duration ranges from 5ms - 15ms
+  // Default backoff duration ranges from 5ms - 25ms
   const int64_t kMinDelay{5};
   const int64_t kMaxDelay{25};
 };
