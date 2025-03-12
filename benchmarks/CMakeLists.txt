@@ -1,5 +1,6 @@
 list(APPEND BENCHMARKS
   lock_benchmark
+  read_write_lock_benchmark
 )
 
 foreach(BENCHMARK IN LISTS BENCHMARKS)
