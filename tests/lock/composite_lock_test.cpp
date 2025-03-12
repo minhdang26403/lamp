@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 // Define static variables
 thread_local CompositeLock::QNode* CompositeLock::my_node_ = nullptr;

@@ -3,7 +3,7 @@
 #include <atomic>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 class StampedReferenceTest : public ::testing::Test {
  protected:

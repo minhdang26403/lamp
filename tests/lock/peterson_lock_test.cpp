@@ -3,7 +3,7 @@
 #include <atomic>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 /**
  * @brief This test ensures that two threads cannot enter the critical section

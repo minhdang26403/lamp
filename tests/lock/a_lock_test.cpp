@@ -3,7 +3,7 @@
 #include <atomic>
 #include <thread>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 // Definition of the thread-local static member (outside the class)
 thread_local uint64_t ALock::my_slot_index = 0;

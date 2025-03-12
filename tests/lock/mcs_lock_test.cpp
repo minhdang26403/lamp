@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 thread_local MCSLock::QNode MCSLock::my_node_;
 

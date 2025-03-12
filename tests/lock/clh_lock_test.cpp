@@ -4,7 +4,7 @@
 #include <thread>
 #include <vector>
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;
 thread_local CLHLock::QNode* CLHLock::my_node_ = new QNode();

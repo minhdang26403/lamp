@@ -1,6 +1,6 @@
 #include "lock/ticket_lock.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 /**
  * @brief This test ensures that at most one thread is in the critical section
