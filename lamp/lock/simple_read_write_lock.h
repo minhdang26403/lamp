@@ -8,7 +8,7 @@ class SimpleReadWriteLock {
  public:
   auto read_lock() -> void {
     mutex_.lock();
-    while (has_writer_) {
+    while (writer_entered_) {
       cv_.wait(mutex_);
     }
     num_readers_++;
@@ -31,23 +31,24 @@ class SimpleReadWriteLock {
 
   auto write_lock() -> void {
     mutex_.lock();
-    while (num_readers_ > 0 || has_writer_) {
+    while (num_readers_ > 0 || writer_entered_) {
       cv_.wait(mutex_);
     }
-    has_writer_ = true;
+    writer_entered_ = true;
     mutex_.unlock();
   }
 
   auto write_unlock() -> void {
     mutex_.lock();
-    has_writer_ = false;
+    writer_entered_ = false;
     mutex_.unlock();
     cv_.notify_all();
   }
 
  private:
-  uint64_t num_readers_;
-  bool has_writer_;
+  uint64_t num_readers_{0};     // number of readers that have acquired the lock
+  bool writer_entered_{false};  // true if there is a writer that has acquired
+                                // the lock and entered the critical section
   TTASLock mutex_;
   ConditionVariable cv_;
 };
