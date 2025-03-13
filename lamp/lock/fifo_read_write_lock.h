@@ -2,34 +2,29 @@
 #define FIFO_READ_WRITE_LOCK_H_
 
 #include "lock/condition_variable.h"
+#include "lock/scoped_lock.h"
 #include "lock/ttas_lock.h"
 
 class FIFOReadWriteLock {
  public:
   auto read_lock() -> void {
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     while (has_writer_) {
       cv_.wait(mutex_);
     }
     num_readers_++;
-    mutex_.unlock();
   }
 
   auto read_unlock() -> void {
-    bool to_notify = false;
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     num_readers_--;
     if (num_readers_ == 0) {
-      to_notify = true;
-    }
-    mutex_.unlock();
-    if (to_notify) {
       cv_.notify_all();
     }
   }
 
   auto write_lock() -> void {
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     while (has_writer_) {
       cv_.wait(mutex_);
     }
@@ -37,13 +32,11 @@ class FIFOReadWriteLock {
     while (num_readers_ > 0) {
       cv_.wait(mutex_);
     }
-    mutex_.unlock();
   }
 
   auto write_unlock() -> void {
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     has_writer_ = false;
-    mutex_.unlock();
     cv_.notify_all();
   }
 

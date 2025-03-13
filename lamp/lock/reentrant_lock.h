@@ -3,6 +3,7 @@
 
 #include "lock/condition_variable.h"
 #include "lock/ttas_lock.h"
+#include "lock/scoped_lock.h"
 
 #include <stdexcept>
 #include <thread>
@@ -11,10 +12,9 @@ class ReentrantLock {
  public:
   auto lock() -> void {
     auto me = std::this_thread::get_id();
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     if (owner_ == me) {
       hold_count_++;
-      mutex_.unlock();
       return;
     }
     while (hold_count_ != 0) {
@@ -22,22 +22,15 @@ class ReentrantLock {
     }
     owner_ = me;
     hold_count_ = 1;
-    mutex_.unlock();
   }
 
   auto unlock() -> void {
-    bool to_notify = false;
-    mutex_.lock();
+    ScopedLock<TTASLock> lk(mutex_);
     if (hold_count_ == 0 || owner_ != std::this_thread::get_id()) {
-      mutex_.unlock();
       throw std::runtime_error("The caller does not hold the lock");
     }
     hold_count_--;
     if (hold_count_ == 0) {
-      to_notify = true;
-    }
-    mutex_.unlock();
-    if (to_notify) {
       cv_.notify_all();
     }
   }
