@@ -9,6 +9,7 @@ list(APPEND LOCK_TESTS
   mcs_lock_test
   peterson_lock_test
   reentrant_lock_test
+  semaphore_test
   simple_read_write_lock_test
   tas_lock_test
   ticket_lock_test
