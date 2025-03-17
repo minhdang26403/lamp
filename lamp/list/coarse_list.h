@@ -4,15 +4,16 @@
 #include <cstddef>
 #include <limits>
 #include <optional>
+
 #include "synchronization/scoped_lock.h"
 #include "synchronization/ttas_lock.h"
 
 template<typename T, typename Hash = std::hash<T>>
 class CoarseList {
   struct Node {
-    size_t key_;
+    size_t key_{};
     std::optional<T> item_;
-    Node* next_;
+    Node* next_{nullptr};
 
     Node(size_t key) : key_(key) {}
 
@@ -23,6 +24,19 @@ class CoarseList {
   CoarseList() {
     head_ = new Node(std::numeric_limits<size_t>::min());
     head_->next_ = new Node(std::numeric_limits<size_t>::max());
+  }
+
+  CoarseList(const CoarseList<T, Hash>&) = delete;
+  auto operator=(const CoarseList<T, Hash>&) -> CoarseList<T, Hash>& = delete;
+
+  ~CoarseList() {
+    ScopedLock<TTASLock> lock(mutex_);
+    Node* pred = head_;
+    while (pred != nullptr) {
+      Node* curr = pred->next_;
+      delete pred;
+      pred = curr;
+    }
   }
 
   auto add(const T& item) -> bool {
