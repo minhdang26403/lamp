@@ -30,12 +30,14 @@ class CoarseList {
   auto operator=(const CoarseList<T, Hash>&) -> CoarseList<T, Hash>& = delete;
 
   ~CoarseList() {
-    ScopedLock<TTASLock> lock(mutex_);
-    Node* pred = head_;
-    while (pred != nullptr) {
-      Node* curr = pred->next_;
-      delete pred;
-      pred = curr;
+    // Note that the destructor is not thread-safe (i.e., it does not acquire a
+    // mutex), so the caller should guarantee that no threads can access the
+    // data structure at the time the destructor is invoked.
+    Node* node = head_;
+    while (node != nullptr) {
+      Node* next = node->next_;
+      delete node;
+      node = next;
     }
   }
 
@@ -53,6 +55,7 @@ class CoarseList {
     auto node = new Node(key, item);
     node->next_ = pred->next_;
     pred->next_ = node;
+
     return true;
   }
 
@@ -70,6 +73,7 @@ class CoarseList {
     Node* node = pred->next_;
     pred->next_ = node->next_;
     delete node;
+
     return true;
   }
 

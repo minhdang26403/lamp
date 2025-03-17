@@ -47,7 +47,7 @@ class FineList {
    * - Tail node with maximum possible key value
    * This simplifies boundary condition handling in the algorithms.
    */
-  FineList() : hash_fn_(Hash{}) {
+  FineList() {
     head_ = new Node(std::numeric_limits<size_t>::min());
     head_->next_ = new Node(std::numeric_limits<size_t>::max());
   }
@@ -70,20 +70,14 @@ class FineList {
    * if threads are still accessing the list during destruction.
    */
   ~FineList() {
-    head_->lock();
-    Node* pred = head_;
-    Node* curr = pred->next_;
-    curr->lock();
-
-    while (true) {
-      pred->unlock();
-      delete pred;
-      pred = curr;
-      curr = curr->next_;
-      if (curr == nullptr) {
-        break;
-      }
-      curr->lock();
+    // Note that the destructor is not thread-safe (i.e., it does not acquire a
+    // mutex), so the caller should guarantee that no threads can access the
+    // data structure at the time the destructor is invoked.
+    Node* node = head_;
+    while (node != nullptr) {
+      Node* next = node->next_;
+      delete node;
+      node = next;
     }
   }
 
@@ -174,16 +168,6 @@ class FineList {
 
  private:
   /**
-   * @brief Computes the hash value for an item
-   *
-   * @param item The item to hash
-   * @return size_t Hash value for the item
-   */
-  auto get_hash_value(const T& item) const noexcept -> size_t {
-    return hash_fn_(item);
-  }
-
-  /**
    * @brief Searches for a key in the list using hand-over-hand locking
    *
    * This method implements the hand-over-hand (or lock coupling) technique:
@@ -213,6 +197,16 @@ class FineList {
     }
 
     return curr->key_ == key;
+  }
+
+  /**
+   * @brief Computes the hash value for an item
+   *
+   * @param item The item to hash
+   * @return size_t Hash value for the item
+   */
+  auto get_hash_value(const T& item) const noexcept -> size_t {
+    return hash_fn_(item);
   }
 
   Node* head_{nullptr};  // Pointer to the sentinel head node
