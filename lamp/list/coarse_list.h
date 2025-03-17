@@ -97,19 +97,16 @@ class CoarseList {
       curr = curr->next_;
     }
 
-    if (curr->key_ == key) {
-      return true;
-    }
-
-    return false;
+    return curr->key_ == key;
   }
 
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    return Hash{}(item);
+    return hash_fn_(item);
   }
 
   TTASLock mutex_;
-  Node* head_;
+  Node* head_{nullptr};
+  Hash hash_fn_{};
 };
 
 #endif  // COARSE_LIST_H_

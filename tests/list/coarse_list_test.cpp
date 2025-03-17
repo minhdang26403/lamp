@@ -1,8 +1,10 @@
 #include "list/coarse_list.h"
-#include <gtest/gtest.h>
+
 #include <random>
 #include <thread>
 #include <vector>
+
+#include "gtest/gtest.h"
 
 class CoarseListTest : public ::testing::Test {
  protected:
@@ -133,32 +135,63 @@ TEST_F(CoarseListTest, ConcurrentAddDifferentItems) {
 
 TEST_F(CoarseListTest, ConcurrentAddRemove) {
   constexpr size_t kNumItems = 100;
+  constexpr size_t kNumThreads = 4;
+  constexpr size_t kOperationsPerThread = 1000;
 
-  // First add items sequentially
-  for (size_t i = 0; i < kNumItems; ++i) {
+  // Track operations to verify consistency
+  std::atomic<size_t> successful_adds{0};
+  std::atomic<size_t> successful_removes{0};
+
+  // First add some initial items
+  for (size_t i = 0; i < kNumItems / 2; i++) {
     EXPECT_TRUE(list_->add(static_cast<int>(i)));
   }
 
-  // Now have two threads: one adding, one removing
-  std::thread remove_thread([this]() {
-    for (size_t i = 0; i < kNumItems; i += 2) {
-      list_->remove(static_cast<int>(i));
-    }
-  });
+  // Run multiple threads doing both adds and removes
+  std::vector<std::thread> threads;
+  threads.reserve(kNumThreads);
 
-  std::thread add_thread([this]() {
-    for (size_t i = 0; i < kNumItems; i += 2) {
-      list_->add(static_cast<int>(i));
-    }
-  });
+  for (size_t t = 0; t < kNumThreads; t++) {
+    threads.emplace_back([this, &successful_adds, &successful_removes]() {
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> val_dist(0,
+                                               static_cast<int>(kNumItems - 1));
+      std::uniform_int_distribution<> op_dist(0, 1);  // 0=add, 1=remove
 
-  remove_thread.join();
-  add_thread.join();
+      for (size_t i = 0; i < kOperationsPerThread; i++) {
+        int value = val_dist(gen);
+        bool is_add = op_dist(gen) == 0;
 
-  // Check that all numbers are still in the list
-  for (size_t i = 0; i < kNumItems; ++i) {
-    EXPECT_TRUE(list_->contains(static_cast<int>(i)));
+        if (is_add) {
+          if (list_->add(value)) {
+            successful_adds++;
+          }
+        } else {
+          if (list_->remove(value)) {
+            successful_removes++;
+          }
+        }
+      }
+    });
   }
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Count items in list at the end
+  size_t items_in_list = 0;
+  for (size_t i = 0; i < kNumItems; i++) {
+    if (list_->contains(static_cast<int>(i))) {
+      items_in_list++;
+    }
+  }
+
+  // The number of items should equal: initial items + successful adds -
+  // successful removes
+  EXPECT_EQ(items_in_list,
+            (kNumItems / 2) + successful_adds - successful_removes);
 }
 
 TEST_F(CoarseListTest, StressTest) {
