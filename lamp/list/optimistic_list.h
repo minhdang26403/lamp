@@ -207,7 +207,10 @@ class OptimisticList {
   }
 
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    return hash_fn_(item);
+    size_t hash = hash_fn_(item);
+
+    // Ensure the hash is never 0 or size_t::max() by wrapping around
+    return (hash % (std::numeric_limits<size_t>::max() - 1)) + 1;
   }
 
   Node* head_;      // Pointer to the first (sentinel) node
