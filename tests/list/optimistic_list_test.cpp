@@ -241,7 +241,7 @@ TEST_F(OptimisticListTest, ConcurrentOperationsMix) {
 }
 
 TEST_F(OptimisticListTest, StressTest) {
-  constexpr size_t kNumThreads = 8;
+  constexpr size_t kNumThreads = 16;
   constexpr size_t kOperationsPerThread = 10000;
   constexpr size_t kValueRange = 1000;
 
