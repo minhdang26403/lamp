@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "benchmark/benchmark.h"
-#include "lock/fifo_read_write_lock.h"
-#include "lock/simple_read_write_lock.h"
+#include "synchronization/fifo_read_write_lock.h"
+#include "synchronization/simple_read_write_lock.h"
 
 // Shared test parameters
 constexpr uint32_t kSharedValue = 42;

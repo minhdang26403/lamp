@@ -3,12 +3,12 @@
 #include <vector>
 
 #include "benchmark/benchmark.h"
-#include "lock/backoff_lock.h"
-#include "lock/clh_lock.h"
-#include "lock/mcs_lock.h"
-#include "lock/tas_lock.h"
-#include "lock/ticket_lock.h"
-#include "lock/ttas_lock.h"
+#include "synchronization/backoff_lock.h"
+#include "synchronization/clh_lock.h"
+#include "synchronization/mcs_lock.h"
+#include "synchronization/tas_lock.h"
+#include "synchronization/ticket_lock.h"
+#include "synchronization/ttas_lock.h"
 
 thread_local MCSLock::QNode MCSLock::my_node_;
 thread_local CLHLock::QNode* CLHLock::my_pred_ = nullptr;
