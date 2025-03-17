@@ -4,7 +4,6 @@
 #include <atomic>
 #include <limits>
 #include <optional>
-#include <iostream>
 
 #include "synchronization/ttas_lock.h"
 
@@ -71,6 +70,21 @@ class OptimisticList {
     if (!key_exists) {
       Node* node = new Node(key, item);
       node->next_ = curr;
+
+      // Without this fence, the processor or compiler might reorder operations
+      // so that pred->next_ = node executes BEFORE node->next_ = curr is
+      // complete. This would make our new node visible to other threads while
+      // its next pointer is still null, breaking the list integrity.
+      //
+      // The release fence ensures that all memory operations before this point
+      // (including node->next_ = curr) are completed before any memory
+      // operations after this point (specifically pred->next_ = node) become
+      // visible to other threads.
+      std::atomic_thread_fence(std::memory_order_release);
+
+      // This is the linearization point - the moment when the node becomes
+      // visible to other threads. After the fence, we can safely make our node
+      // visible.
       pred->next_ = node;
     }
 
@@ -87,8 +101,19 @@ class OptimisticList {
     Node* curr = pred->next_;
 
     if (key_exists) {
-      // Logically remove the node from the main list
+      // This is the linearization point - the moment when the node is logically
+      // removed
       pred->next_ = curr->next_;
+
+      // Without this fence, the processor might reorder operations so that
+      // we start reusing curr->next_ for the garbage list before the node
+      // is completely removed from the main list.
+      //
+      // The acquire fence ensures that all memory operations after this point
+      // (including manipulating curr->next_ for the garbage list)
+      // don't execute until all memory operations before this point
+      // (specifically pred->next_ = curr->next_) are complete.
+      std::atomic_thread_fence(std::memory_order_acquire);
 
       // Add the node to the garbage list using lock-free approach
       // Reuse the next_ pointer since the node is no longer in the main list
@@ -117,14 +142,6 @@ class OptimisticList {
     pred->unlock();
 
     return key_exists;
-  }
-
-  auto Print() -> void {
-    Node* node = head_;
-    while (node != nullptr) {
-      std::cout << node->key_ << ", ";
-      node = node->next_;
-    }
   }
 
  private:
@@ -190,7 +207,7 @@ class OptimisticList {
   }
 
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    return hash_fn_(item) + 1;
+    return hash_fn_(item);
   }
 
   Node* head_;      // Pointer to the first (sentinel) node
