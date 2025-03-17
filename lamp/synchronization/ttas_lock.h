@@ -3,7 +3,7 @@
 
 #include <atomic>
 
-#include "lock/lock.h"
+#include "synchronization/lock.h"
 
 /**
  * @brief Test-and-test-and-set lock improves the performance of test-and-set

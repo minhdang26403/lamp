@@ -4,7 +4,7 @@
 #include <atomic>
 #include <thread>
 
-#include "lock/lock.h"
+#include "synchronization/lock.h"
 
 class TicketLock : public Lock {
  public:

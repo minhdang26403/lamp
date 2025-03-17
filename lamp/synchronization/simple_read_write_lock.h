@@ -1,9 +1,9 @@
 #ifndef SIMPLE_READ_WRITE_LOCK_H_
 #define SIMPLE_READ_WRITE_LOCK_H_
 
-#include "lock/condition_variable.h"
-#include "lock/scoped_lock.h"
-#include "lock/ttas_lock.h"
+#include "synchronization/condition_variable.h"
+#include "synchronization/scoped_lock.h"
+#include "synchronization/ttas_lock.h"
 
 class SimpleReadWriteLock {
  public:

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "lock/semaphore.h"
+#include "synchronization/semaphore.h"
 
 using namespace std::chrono_literals;
 

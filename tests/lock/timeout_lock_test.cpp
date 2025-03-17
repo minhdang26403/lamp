@@ -1,4 +1,4 @@
-#include "lock/timeout_lock.h"
+#include "synchronization/timeout_lock.h"
 
 #include <atomic>
 #include <thread>

@@ -1,4 +1,4 @@
-#include "lock/ticket_lock.h"
+#include "synchronization/ticket_lock.h"
 
 #include "gtest/gtest.h"
 

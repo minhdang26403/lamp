@@ -1,4 +1,4 @@
-#include "lock/simple_read_write_lock.h"
+#include "synchronization/simple_read_write_lock.h"
 
 #include <algorithm>
 #include <atomic>

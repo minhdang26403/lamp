@@ -6,7 +6,7 @@
 #include <list>
 #include <thread>
 
-#include "lock/ttas_lock.h"
+#include "synchronization/ttas_lock.h"
 
 enum class CVStatus {
   kNoTimeout,

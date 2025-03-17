@@ -4,7 +4,7 @@
 #include <atomic>
 #include <vector>
 
-#include "lock/lock.h"
+#include "synchronization/lock.h"
 
 struct Flag {
   std::atomic<bool> flag_{false};

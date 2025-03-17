@@ -1,10 +1,10 @@
-#include "lock/condition_variable.h"
+#include "synchronization/condition_variable.h"
 
 #include <chrono>
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "lock/ttas_lock.h"
+#include "synchronization/ttas_lock.h"
 
 using namespace std::chrono_literals;
 

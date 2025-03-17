@@ -1,4 +1,4 @@
-#include "lock/peterson_lock.h"
+#include "synchronization/peterson_lock.h"
 
 #include <atomic>
 #include <thread>

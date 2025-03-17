@@ -1,4 +1,4 @@
-#include "lock/clh_lock.h"
+#include "synchronization/clh_lock.h"
 
 #include <atomic>
 #include <thread>

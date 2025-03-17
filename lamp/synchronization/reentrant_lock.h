@@ -1,9 +1,9 @@
 #ifndef REENTRANT_LOCK_H_
 #define REENTRANT_LOCK_H_
 
-#include "lock/condition_variable.h"
-#include "lock/ttas_lock.h"
-#include "lock/scoped_lock.h"
+#include "synchronization/condition_variable.h"
+#include "synchronization/ttas_lock.h"
+#include "synchronization/scoped_lock.h"
 
 #include <stdexcept>
 #include <thread>

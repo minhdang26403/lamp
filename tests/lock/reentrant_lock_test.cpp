@@ -1,4 +1,4 @@
-#include "lock/reentrant_lock.h"
+#include "synchronization/reentrant_lock.h"
 
 #include <atomic>
 #include <thread>

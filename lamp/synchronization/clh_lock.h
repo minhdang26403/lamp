@@ -4,7 +4,7 @@
 #include <atomic>
 #include <chrono>
 
-#include "lock/lock.h"
+#include "synchronization/lock.h"
 #include "util/backoff.h"
 
 class CLHLock : public Lock {

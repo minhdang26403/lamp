@@ -1,4 +1,4 @@
-#include "lock/fifo_read_write_lock.h"
+#include "synchronization/fifo_read_write_lock.h"
 
 #include <algorithm>
 #include <atomic>

@@ -1,4 +1,4 @@
-#include "lock/tas_lock.h"
+#include "synchronization/tas_lock.h"
 
 #include <atomic>
 #include <thread>
