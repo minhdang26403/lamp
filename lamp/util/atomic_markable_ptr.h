@@ -19,7 +19,7 @@ class AtomicMarkablePtr {
   AtomicMarkablePtr(T* ptr, bool marked) {
     static_assert(alignof(T) >= 2,
                   "T must be at least 2-byte aligned for mark bit");
-    ptr_and_mark_.store(pack(ptr, marked), std::memory_order_relaxed);
+    ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
   }
 
   /**
