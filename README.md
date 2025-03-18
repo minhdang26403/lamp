@@ -16,8 +16,8 @@ This project implements various concurrent data structures based on seminal rese
 - `LockFreeList`: a lock-free container that contains a sorted set of unique objects. This data structure is based on the solution proposed by Michael [[Mic02]](#Mic02) which builds upon the original proposal by Harris [[Har01]](#Har01).
 
 ## References
-|     |     |
-| --- | --- |
+| Citation ID | Reference |
+| ----------- | --------- |
 | <a id="Bay77"></a> [Bay77] | R. Bayer, M. Schkolnick, Concurrency of operations on B-trees, Acta Informatica 9 (1977) 1–21. |
 | <a id="Har01"></a> [Har01] | Tim Harris, [A pragmatic implementation of non-blocking linked-lists](https://timharris.uk/papers/2001-disc.pdf), in: Proceedings of 15th International Symposium on Distributed Computing, DISC 2001, Lisbon, Portugal, in: Lecture Notes in Computer Science, vol. 2180, Springer Verlag, October 2001, pp. 300–314. |
 | <a id="Hel05"></a> [Hel05] | S. Heller, M. Herlihy, V. Luchangco, M. Moir, W.N. Scherer III, N. Shavit, [A lazy concurrent list-based set algorithm](https://people.csail.mit.edu/shanir/publications/Lazy_Concurrent.pdf), in: Proc. of the Ninth International Conference on Principles of Distributed Systems, OPODIS 2005, 2005, pp. 3–16. |
