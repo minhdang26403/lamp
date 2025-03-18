@@ -102,8 +102,8 @@ class OptimisticList {
     Node* curr = pred->next_;
 
     if (key_exists) {
-      // This is the linearization point - the moment when the node is logically
-      // removed
+      // This is the linearization point - the moment when the node is
+      // physically removed
       pred->next_ = curr->next_;
 
       // Without this fence, the processor might reorder operations so that
