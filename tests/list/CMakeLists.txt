@@ -2,6 +2,7 @@ list(APPEND LIST_TESTS
   coarse_list_test
   fine_list_test
   lazy_list_test
+  lock_free_list_test
   optimistic_list_test
 )
 
