@@ -1,4 +1,5 @@
 list(APPEND UTIL_TESTS
+  atomic_markable_ptr_test
   stamped_reference_test
 )
 
