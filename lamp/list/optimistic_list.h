@@ -106,20 +106,22 @@ class OptimisticList {
       // removed
       pred->next_ = curr->next_;
 
-      // Without proper memory ordering, the processor might reorder operations,
-      // causing curr to be added to the garbage list before it is fully removed
-      // from the main list, leading to a potential race condition.
+      // Without this fence, the processor might reorder operations so that
+      // we start reusing curr->next_ for the garbage list before the node
+      // is completely removed from the main list.
       //
-      // Using memory_order_release in compare_exchange_weak ensures that all
-      // prior operations (including pred->next_ = curr->next_) are visible to
-      // other threads before the node is added to the garbage list.
-      //
-      // The garbage list uses a lock-free approach where the next_ pointer of
-      // the removed node is reused. The CAS loop ensures that concurrent
-      // modifications to garbage_list_ remain thread-safe.
+      // The acquire fence ensures that all memory operations after this point
+      // (including manipulating curr->next_ for the garbage list)
+      // don't execute until all memory operations before this point
+      // (specifically pred->next_ = curr->next_) are complete.
+      std::atomic_thread_fence(std::memory_order_acquire);
+
+      // Add the node to the garbage list using lock-free approach
+      // Reuse the next_ pointer since the node is no longer in the main list
+      // The compare_exchange_weak loop ensures thread safety when multiple
+      // threads try to add nodes to the garbage list concurrently.
       curr->next_ = garbage_list_.load(std::memory_order_relaxed);
       while (!garbage_list_.compare_exchange_weak(curr->next_, curr,
-                                                  std::memory_order_release,
                                                   std::memory_order_relaxed)) {
         // If CAS fails, curr->next_ is updated with the latest value of
         // garbage_list_, and we retry with the updated value.
@@ -207,10 +209,7 @@ class OptimisticList {
   }
 
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    size_t hash = hash_fn_(item);
-
-    // Ensure the hash is never 0 or size_t::max() by wrapping around
-    return (hash % (std::numeric_limits<size_t>::max() - 1)) + 1;
+    return hash_fn_(item);
   }
 
   Node* head_;      // Pointer to the first (sentinel) node
