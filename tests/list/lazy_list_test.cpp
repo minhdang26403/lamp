@@ -40,6 +40,37 @@ TEST_F(LazyListTest, RemoveNonExistent) {
   EXPECT_FALSE(list_->remove(1));
 }
 
+TEST_F(LazyListTest, BoundaryCheck) {
+  // This test verifies protection against boundary value vulnerabilities.
+  // The lazy list implementation uses sentinel nodes with special values:
+  // - Head sentinel with key value std::numeric_limits<size_t>::min() (min_val)
+  // - Tail sentinel with key value std::numeric_limits<size_t>::max() (max_val)
+  //
+  // The test ensures the implementation properly handles client attempts to
+  // insert or remove values that collide with these sentinel values, which
+  // could otherwise corrupt the data structure by removing/replacing sentinel
+  // nodes or creating duplicate sentinels, breaking the list invariants.
+  LazyList<size_t> s_list;
+
+  size_t min_val = std::numeric_limits<size_t>::min();
+  size_t max_val = std::numeric_limits<size_t>::max();
+
+  // An empty list should not contain the min value (head sentinel)
+  EXPECT_FALSE(s_list.contains(min_val));
+  // An empty list should not contain the max value (tail sentinel)
+  EXPECT_FALSE(s_list.contains(max_val));
+
+  // Since the list does not contain min and max values, attempt to remove them
+  // should fail
+  EXPECT_FALSE(s_list.remove(min_val));
+  EXPECT_FALSE(s_list.remove(max_val));
+
+  // Since the list does not contain min and max values, we should be able to
+  // insert them
+  EXPECT_TRUE(s_list.add(min_val));
+  EXPECT_TRUE(s_list.add(max_val));
+}
+
 TEST_F(LazyListTest, AddMultipleItems) {
   for (size_t i = 1; i <= 5; i++) {
     EXPECT_TRUE(list_->add(static_cast<int>(i)));

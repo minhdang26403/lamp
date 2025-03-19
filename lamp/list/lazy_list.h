@@ -55,8 +55,9 @@ class LazyList {
   LazyList() {
     size_t min_key = std::numeric_limits<size_t>::min();
     size_t max_key = std::numeric_limits<size_t>::max();
-    head_ = new Node(min_key);         // Create head sentinel node
-    head_->next_ = new Node(max_key);  // Create tail sentinel node
+    head_ = new Node(min_key);  // Create head sentinel node
+    tail_ = new Node(max_key);  // Create tail sentinel node
+    head_->next_ = tail_;
     garbage_list_.store(
         new Node(max_key),
         std::memory_order_relaxed);  // Initialize garbage list with sentinel
@@ -179,14 +180,16 @@ class LazyList {
    */
   auto contains(const T& item) -> bool {
     size_t key = get_hash_value(item);
-    Node* curr = head_;
+    // Skip the head sentinel node since the key may be 0, which collides with
+    // the key of the head sentinel
+    Node* curr = head_->next_;
     // Traverse list until we find a key >= target
     while (curr->key_ < key) {
       curr = curr->next_;
     }
 
     // Check if key matches and node is not marked as deleted
-    return curr->key_ == key && !curr->marked_;
+    return curr != tail_ && curr->key_ == key && !curr->marked_;
   }
 
  private:
@@ -219,7 +222,7 @@ class LazyList {
       // Validate that nodes are still valid and connected
       // If validation fails, release locks and retry
       if (validate(pred, curr)) {
-        return curr->key_ == key;
+        return curr != tail_ && curr->key_ == key;
       }
 
       pred->unlock();
@@ -253,10 +256,11 @@ class LazyList {
    * ordering
    */
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    return hash_fn_(item) + 1;
+    return hash_fn_(item);
   }
 
   Node* head_;      // Pointer to the head sentinel node
+  Node* tail_;      // Pointer to the tail sentinel node
   Hash hash_fn_{};  // Hash function for generating keys
   std::atomic<Node*>
       garbage_list_;  // Lock-free list of logically deleted nodes
