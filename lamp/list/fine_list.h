@@ -49,7 +49,8 @@ class FineList {
    */
   FineList() {
     head_ = new Node(std::numeric_limits<size_t>::min());
-    head_->next_ = new Node(std::numeric_limits<size_t>::max());
+    tail_ = new Node(std::numeric_limits<size_t>::max());
+    head_->next_ = tail_;
   }
 
   /**
@@ -196,7 +197,7 @@ class FineList {
       curr->lock();
     }
 
-    return curr->key_ == key;
+    return curr != tail_ && curr->key_ == key;
   }
 
   /**
@@ -210,6 +211,7 @@ class FineList {
   }
 
   Node* head_{nullptr};  // Pointer to the sentinel head node
+  Node* tail_{nullptr};  // Pointer to the tail head node
   Hash hash_fn_{};       // Hash function object
 };
 

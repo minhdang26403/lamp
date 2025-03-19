@@ -23,7 +23,8 @@ class CoarseList {
  public:
   CoarseList() {
     head_ = new Node(std::numeric_limits<size_t>::min());
-    head_->next_ = new Node(std::numeric_limits<size_t>::max());
+    tail_ = new Node(std::numeric_limits<size_t>::max());
+    head_->next_ = tail_;
   }
 
   CoarseList(const CoarseList<T, Hash>&) = delete;
@@ -101,7 +102,7 @@ class CoarseList {
       curr = curr->next_;
     }
 
-    return curr->key_ == key;
+    return curr != tail_ && curr->key_ == key;
   }
 
   auto get_hash_value(const T& item) const noexcept -> size_t {
@@ -110,6 +111,7 @@ class CoarseList {
 
   TTASLock mutex_;
   Node* head_{nullptr};
+  Node* tail_{nullptr};
   Hash hash_fn_{};
 };
 
