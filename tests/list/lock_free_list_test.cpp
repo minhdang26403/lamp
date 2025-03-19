@@ -166,7 +166,7 @@ TEST_F(LockFreeListTest, ConcurrentContains) {
 
   std::vector<std::thread> threads;
   threads.reserve(kNumThreads);
-  std::atomic<int> correct_results{0};
+  std::atomic<uint32_t> correct_results{0};
 
   for (size_t t = 0; t < kNumThreads; t++) {
     threads.emplace_back([this, &correct_results]() {
@@ -253,10 +253,10 @@ TEST_F(LockFreeListTest, AddRemoveContainsStressTest) {
 
   std::vector<std::thread> threads;
   threads.reserve(kNumThreads);
-  std::atomic<int> add_count{0};
-  std::atomic<int> remove_count{0};
-  std::atomic<int> contains_true_count{0};
-  std::atomic<int> contains_false_count{0};
+  std::atomic<uint32_t> add_count{0};
+  std::atomic<uint32_t> remove_count{0};
+  std::atomic<uint32_t> contains_true_count{0};
+  std::atomic<uint32_t> contains_false_count{0};
 
   for (size_t t = 0; t < kNumThreads; t++) {
     threads.emplace_back([this, &add_count, &remove_count, &contains_true_count,
