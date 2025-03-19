@@ -1,6 +1,7 @@
 #include "list/lock_free_list.h"
 
 #include <atomic>
+#include <limits>
 #include <random>
 #include <thread>
 #include <vector>
@@ -36,6 +37,37 @@ TEST_F(LockFreeListTest, RemoveSingleItem) {
   // Verify item can be re-added after removal
   EXPECT_TRUE(list_->add(42));
   EXPECT_TRUE(list_->contains(42));
+}
+
+TEST_F(LockFreeListTest, BoundaryCheck) {
+  // This test verifies protection against boundary value vulnerabilities.
+  // The lock-free list implementation uses sentinel nodes with special values:
+  // - Head sentinel with key value std::numeric_limits<size_t>::min() (min_val)
+  // - Tail sentinel with key value std::numeric_limits<size_t>::max() (max_val)
+  //
+  // The test ensures the implementation properly handles client attempts to
+  // insert or remove values that collide with these sentinel values, which
+  // could otherwise corrupt the data structure by removing/replacing sentinel
+  // nodes or creating duplicate sentinels, breaking the list invariants.
+  LockFreeList<size_t> s_list;
+
+  size_t min_val = std::numeric_limits<size_t>::min();
+  size_t max_val = std::numeric_limits<size_t>::max();
+
+  // An empty list should not contain the min value (head sentinel)
+  EXPECT_FALSE(s_list.contains(min_val));
+  // An empty list should not contain the max value (tail sentinel)
+  EXPECT_FALSE(s_list.contains(max_val));
+
+  // Since the list does not contain min and max values, attempt to remove them
+  // should fail
+  EXPECT_FALSE(s_list.remove(min_val));
+  EXPECT_FALSE(s_list.remove(max_val));
+
+  // Since the list does not contain min and max values, we should be able to
+  // insert them
+  EXPECT_TRUE(s_list.add(min_val));
+  EXPECT_TRUE(s_list.add(max_val));
 }
 
 TEST_F(LockFreeListTest, AddDuplicateItem) {

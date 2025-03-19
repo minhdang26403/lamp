@@ -60,8 +60,8 @@ class LockFreeList {
     size_t min_key = std::numeric_limits<size_t>::min();
     size_t max_key = std::numeric_limits<size_t>::max();
     head_ = new Node(min_key);
-    head_->next_ =
-        std::make_unique<AtomicMarkablePtr<Node>>(new Node(max_key), false);
+    tail_ = new Node(max_key);
+    head_->next_ = std::make_unique<AtomicMarkablePtr<Node>>(tail_, false);
   }
 
   // Prevent copying to avoid complex ownership issues
@@ -107,7 +107,7 @@ class LockFreeList {
       auto [pred, curr] = find(head_, key);
 
       // If key already exists, return false
-      if (curr->key_ == key) {
+      if (curr != tail_ && curr->key_ == key) {
         return false;
       }
 
@@ -148,7 +148,7 @@ class LockFreeList {
       auto [pred, curr] = find(head_, key);
 
       // If key not found, return false
-      if (curr->key_ != key) {
+      if (curr == tail_ || curr->key_ != key) {
         return false;
       }
 
@@ -189,7 +189,7 @@ class LockFreeList {
    */
   auto contains(const T& item) -> bool {
     size_t key = get_hash_value(item);
-    Node* curr = head_;
+    Node* curr = head_->next_->get_ptr(std::memory_order_acquire);
 
     // Traverse until we find a node with a key >= our target
     while (curr->key_ < key) {
@@ -197,7 +197,7 @@ class LockFreeList {
     }
 
     // Check if we found the exact key and it's not marked for deletion
-    return (curr->key_ == key &&
+    return (curr != tail_ && curr->key_ == key &&
             !curr->next_->is_marked(std::memory_order_acquire));
   }
 
@@ -288,10 +288,11 @@ class LockFreeList {
    * @return The hash value as a size_t
    */
   auto get_hash_value(const T& item) const noexcept -> size_t {
-    return hash_fn_(item) + 1;
+    return hash_fn_(item);
   }
 
   Node* head_{};    // Pointer to the head sentinel node
+  Node* tail_{};    // Pointer to the tail sentinel node
   Hash hash_fn_{};  // Hash function to generate keys from items
   std::atomic<Node*> garbage_list_{
       nullptr};  // List of logically deleted nodes for deferred deletion
