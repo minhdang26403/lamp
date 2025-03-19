@@ -1,4 +1,5 @@
 list(APPEND BENCHMARKS
+  list_benchmark
   lock_benchmark
   read_write_lock_benchmark
 )
