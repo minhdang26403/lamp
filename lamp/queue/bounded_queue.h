@@ -26,7 +26,12 @@ class BoundedQueue {
   }
 
   ~BoundedQueue() {
-    delete head_;
+    Node* curr = head_;
+    while (curr != nullptr) {
+      Node* next = curr->next_;
+      delete curr;
+      curr = next;
+    }
   }
 
   auto enqueue(const T& value) -> void {
