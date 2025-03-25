@@ -28,14 +28,14 @@ TEST(BoundedQueueTest, SingleProducerSingleConsumerFIFO) {
 
   // Producer thread: Enqueue 0 to 99
   std::thread producer([&queue]() {
-    for (size_t i = 0; i < kNumElements; ++i) {
+    for (size_t i = 0; i < kNumElements; i++) {
       queue.enqueue(i);
     }
   });
 
   // Consumer thread: Dequeue 100 elements
   std::thread consumer([&queue, &dequeued]() {
-    for (size_t i = 0; i < kNumElements; ++i) {
+    for (size_t i = 0; i < kNumElements; i++) {
       int value = queue.dequeue();
       dequeued.push_back(value);
     }
@@ -46,7 +46,7 @@ TEST(BoundedQueueTest, SingleProducerSingleConsumerFIFO) {
 
   // Verify size and FIFO order
   ASSERT_EQ(dequeued.size(), kNumElements);
-  for (size_t i = 0; i < kNumElements; ++i) {
+  for (size_t i = 0; i < kNumElements; i++) {
     EXPECT_EQ(dequeued[i], static_cast<int>(i))
         << "FIFO order violated at index " << i;
   }
@@ -73,9 +73,9 @@ TEST(BoundedQueueTest, MultipleProducersMultipleConsumers) {
   dequeued.reserve(enqueued.size());
 
   // Launch producers
-  for (size_t p = 0; p < kNumProducers; ++p) {
+  for (size_t p = 0; p < kNumProducers; p++) {
     producers.emplace_back([&, p]() {
-      for (size_t i = 0; i < kElementsPerProducer; ++i) {
+      for (size_t i = 0; i < kElementsPerProducer; i++) {
         int value = static_cast<int>(p * kElementsPerProducer + i);
         queue.enqueue(value);
         {
@@ -87,9 +87,9 @@ TEST(BoundedQueueTest, MultipleProducersMultipleConsumers) {
   }
 
   // Launch consumers
-  for (size_t c = 0; c < kNumConsumers; ++c) {
+  for (size_t c = 0; c < kNumConsumers; c++) {
     consumers.emplace_back([&]() {
-      for (size_t i = 0; i < kElementsPerProducer; ++i) {
+      for (size_t i = 0; i < kElementsPerProducer; i++) {
         int value = queue.dequeue();
         {
           std::lock_guard<std::mutex> lock(deq_mutex);
