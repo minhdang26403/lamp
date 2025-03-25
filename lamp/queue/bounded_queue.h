@@ -25,6 +25,10 @@ class BoundedQueue {
     tail_ = head_;
   }
 
+  ~BoundedQueue() {
+    delete head_;
+  }
+
   auto enqueue(const T& value) -> void {
     bool must_wake_dequeuers = false;
     auto node = new Node(value);
@@ -63,7 +67,9 @@ class BoundedQueue {
       }
 
       value = head_->next_->value_.value();
+      Node* old_head = head_;
       head_ = head_->next_;
+      delete old_head;
 
       if (size_.fetch_sub(1, std::memory_order_relaxed) == capacity_) {
         must_wake_enqueuers = true;
