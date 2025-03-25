@@ -1,5 +1,6 @@
 list(APPEND QUEUE_TESTS
   bounded_queue_test
+  unbounded_queue_test
 )
 
 foreach(QUEUE_TEST IN LISTS QUEUE_TESTS)
