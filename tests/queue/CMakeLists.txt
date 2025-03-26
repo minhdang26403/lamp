@@ -1,5 +1,6 @@
 list(APPEND QUEUE_TESTS
   bounded_queue_test
+  lock_free_queue_test
   unbounded_queue_test
 )
 
