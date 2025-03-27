@@ -1,17 +1,11 @@
 #ifndef UNBOUNDED_QUEUE_H_
 #define UNBOUNDED_QUEUE_H_
 
-#include <format>
 #include <optional>
 
 #include "synchronization/scoped_lock.h"
 #include "synchronization/ttas_lock.h"
-
-class EmptyException : public std::runtime_error {
- public:
-  EmptyException(const std::string& what_arg)
-      : std::runtime_error(std::format("EmptyException: {}", what_arg)) {}
-};
+#include "util/common.h"
 
 template<typename T>
 class UnboundedQueue {
