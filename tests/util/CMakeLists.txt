@@ -1,6 +1,6 @@
 list(APPEND UTIL_TESTS
   atomic_markable_ptr_test
-  stamped_reference_test
+  atomic_stamped_ptr_test
 )
 
 foreach(UTIL_TEST IN LISTS UTIL_TESTS)
