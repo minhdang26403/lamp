@@ -40,7 +40,6 @@ class LockFreeQueueRecycle {
         }
         Node* next = head->next_.get_ptr(std::memory_order_relaxed);
         if (unused_nodes_.compare_and_swap(head, next, stamp, stamp + 1,
-                                           std::memory_order_acquire,
                                            std::memory_order_relaxed)) {
           head->value_ = std::move(value);
           head->next_.set(nullptr, 0, std::memory_order_relaxed);
@@ -54,7 +53,6 @@ class LockFreeQueueRecycle {
         auto [head, stamp] = unused_nodes_.get(std::memory_order_relaxed);
         node->next_.set(head, 0, std::memory_order_relaxed);
         if (unused_nodes_.compare_and_swap(head, node, stamp, stamp + 1,
-                                           std::memory_order_release,
                                            std::memory_order_relaxed)) {
           return;
         }
@@ -77,7 +75,7 @@ class LockFreeQueueRecycle {
     auto node = node_pool_.allocate(std::optional<T>{std::move(value)});
     while (true) {
       auto [last, last_stamp] = tail_.get(std::memory_order_acquire);
-      auto [next, next_stamp] = last->next_.get(std::memory_order_relaxed);
+      auto [next, next_stamp] = last->next_.get(std::memory_order_acquire);
       if (last_stamp == tail_.get_stamp(std::memory_order_relaxed)) {
         if (next == nullptr) {
           if (last->next_.compare_and_swap(
@@ -99,9 +97,9 @@ class LockFreeQueueRecycle {
 
   auto dequeue() -> T {
     while (true) {
-      auto [first, first_stamp] = head_.get(std::memory_order_acquire);
-      auto [last, last_stamp] = tail_.get(std::memory_order_relaxed);
-      auto [next, next_stamp] = first->next_.get(std::memory_order_relaxed);
+      auto [first, first_stamp] = head_.get(std::memory_order_relaxed);
+      auto [last, last_stamp] = tail_.get(std::memory_order_acquire);
+      auto [next, next_stamp] = first->next_.get(std::memory_order_acquire);
 
       if (first_stamp == head_.get_stamp(std::memory_order_relaxed)) {
         if (first == last) {
@@ -112,10 +110,9 @@ class LockFreeQueueRecycle {
                                  std::memory_order_release,
                                  std::memory_order_relaxed);
         } else {
-          T value = next->value_.value();
           if (head_.compare_and_swap(first, next, first_stamp, first_stamp + 1,
-                                     std::memory_order_acquire,
                                      std::memory_order_relaxed)) {
+            T value = next->value_.value();
             node_pool_.free(first);
             return value;
           }
