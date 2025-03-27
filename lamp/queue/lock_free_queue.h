@@ -61,16 +61,18 @@ class LockFreeQueue {
           // Attempt to link new node at the end
           // If successful, try to update tail (might fail if others help)
           if (last->next_.compare_exchange_strong(next, node,
-                                                  std::memory_order_release)) {
+                                                  std::memory_order_release,
+                                                  std::memory_order_relaxed)) {
             // Tail update is best-effort; other threads might do it first
-            tail_.compare_exchange_strong(last, node,
-                                          std::memory_order_release);
+            tail_.compare_exchange_strong(last, node, std::memory_order_release,
+                                          std::memory_order_relaxed);
             return;
           }
         } else {
           // Tail is lagging behind; help advance it
           // This helps maintain queue consistency across threads
-          tail_.compare_exchange_strong(last, next, std::memory_order_release);
+          tail_.compare_exchange_strong(last, next, std::memory_order_release,
+                                        std::memory_order_relaxed);
         }
       }
       // Loop continues if CAS fails or tail changed
@@ -93,12 +95,14 @@ class LockFreeQueue {
             throw EmptyException("dequeue: Try to dequeue from an empty queue");
           }
           // Special case: last node being enqueued, help finish it
-          tail_.compare_exchange_strong(last, next, std::memory_order_release);
+          tail_.compare_exchange_strong(last, next, std::memory_order_release,
+                                        std::memory_order_relaxed);
         } else {
           // Normal case: remove head node
           T value = next->value_.value();
           if (head_.compare_exchange_strong(first, next,
-                                            std::memory_order_release)) {
+                                            std::memory_order_release,
+                                            std::memory_order_relaxed)) {
             // Successfully dequeued, add old head to garbage list
             add_to_garbage(first);
             return value;
