@@ -56,7 +56,7 @@ class LockFreeQueue {
       // Double-check tail hasn't changed. Note that this check may seem
       // vulnerable to ABA, but our deferred deletion scheme (nodes only
       // freed in destructor) prevents ABA problems
-      if (last == tail_.load(std::memory_order_acquire)) {
+      if (last == tail_.load(std::memory_order_relaxed)) {
         if (next == nullptr) {
           // Attempt to link new node at the end
           // If successful, try to update tail (might fail if others help)
@@ -81,14 +81,14 @@ class LockFreeQueue {
 
   auto dequeue() -> T {
     while (true) {
-      Node* first = head_.load(std::memory_order_acquire);
+      Node* first = head_.load(std::memory_order_relaxed);
       Node* last = tail_.load(std::memory_order_acquire);
       Node* next = first->next_.load(std::memory_order_acquire);
 
       // Verify head hasn't changed. Note that this check may seem
       // vulnerable to ABA, but our deferred deletion scheme (nodes only
       // freed in destructor) prevents ABA problems
-      if (first == head_.load(std::memory_order_acquire)) {
+      if (first == head_.load(std::memory_order_relaxed)) {
         if (first == last) {
           if (next == nullptr) {
             // Queue is empty (head=tail and no next node)
@@ -99,11 +99,10 @@ class LockFreeQueue {
                                         std::memory_order_relaxed);
         } else {
           // Normal case: remove head node
-          T value = next->value_.value();
           if (head_.compare_exchange_strong(first, next,
-                                            std::memory_order_release,
                                             std::memory_order_relaxed)) {
             // Successfully dequeued, add old head to garbage list
+            T value = next->value_.value();
             add_to_garbage(first);
             return value;
           }
