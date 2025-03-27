@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "util/atomic_stamped_ptr.h"
 #include "util/backoff.h"
-#include "util/stamped_reference.h"
 
 template<typename Duration>
 using TimePoint = std::chrono::time_point<std::chrono::steady_clock, Duration>;
@@ -104,14 +104,16 @@ class CompositeLock {
     uint64_t stamp;
     // Repeatedly trying to enqueue a node into the waiting queue.
     do {
-      cur_tail = tail_.get(stamp);
+      std::tie(cur_tail, stamp) = tail_.get(std::memory_order_acquire);
       if (timeout(start, timeout_duration)) {
         node->state_.store(FREE, std::memory_order_release);
         throw TimeoutException(
             "Thread times out while trying to splice the acquired node into "
             "the waiting queue");
       }
-    } while (!tail_.compare_and_set(cur_tail, node, stamp, stamp + 1));
+    } while (!tail_.compare_and_swap(cur_tail, node, stamp, stamp + 1,
+                                     std::memory_order_release,
+                                     std::memory_order_relaxed));
     return cur_tail;
   }
 
@@ -153,7 +155,7 @@ class CompositeLock {
   const int64_t kMinDelay;
   const int64_t kMaxDelay;
 
-  StampedReference<QNode> tail_;
+  AtomicStampedPtr<QNode> tail_;
   std::vector<QNode> waiting_;
   static thread_local QNode* my_node_;
 };
