@@ -4,6 +4,7 @@
 #include <atomic>
 #include <optional>
 
+#include "util/atomic_stamped_ptr.h"
 #include "util/common.h"
 
 template<typename T>
@@ -13,38 +14,84 @@ template<typename T>
 class LockFreeQueueRecycle {
   struct Node {
     std::optional<T> value_{};
-    std::atomic<Node*> next_{};
+    AtomicStampedPtr<Node> next_{};
 
     Node() = default;
 
     Node(std::optional<T> value) : value_(std::move(value)) {}
   };
 
+  class NodePool {
+   public:
+    ~NodePool() {
+      auto [curr, _] = unused_nodes_.get(std::memory_order_relaxed);
+      while (curr != nullptr) {
+        auto next = curr->next_.get_ptr(std::memory_order_relaxed);
+        delete curr;
+        curr = next;
+      }
+    }
+
+    auto allocate(std::optional<T> value) -> Node* {
+      while (true) {
+        auto [head, stamp] = unused_nodes_.get(std::memory_order_relaxed);
+        if (head == nullptr) {
+          return new Node(std::move(value));
+        }
+        Node* next = head->next_.get_ptr(std::memory_order_relaxed);
+        if (unused_nodes_.compare_and_swap(head, next, stamp, stamp + 1,
+                                           std::memory_order_acquire,
+                                           std::memory_order_relaxed)) {
+          head->value_ = std::move(value);
+          head->next_.set(nullptr, 0, std::memory_order_relaxed);
+          return head;
+        }
+      }
+    }
+
+    auto free(Node* node) -> void {
+      while (true) {
+        auto [head, stamp] = unused_nodes_.get(std::memory_order_relaxed);
+        node->next_.set(head, 0, std::memory_order_relaxed);
+        if (unused_nodes_.compare_and_swap(head, node, stamp, stamp + 1,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed)) {
+          return;
+        }
+      }
+    }
+
+   private:
+    AtomicStampedPtr<Node> unused_nodes_{};
+  };
+
  public:
   LockFreeQueueRecycle() {
     auto node = node_pool_.allocate(std::nullopt);
     std::atomic_thread_fence(std::memory_order_release);
-    head_.store(node, std::memory_order_relaxed);
-    tail_.store(node, std::memory_order_relaxed);
+    head_.set(node, 0, std::memory_order_relaxed);
+    tail_.set(node, 0, std::memory_order_relaxed);
   }
 
   auto enqueue(T value) -> void {
     auto node = node_pool_.allocate(std::optional<T>{std::move(value)});
     while (true) {
-      Node* last = tail_.load(std::memory_order_acquire);
-      Node* next = last->next_.load(std::memory_order_acquire);
-      if (last == tail_.load(std::memory_order_acquire)) {
+      auto [last, last_stamp] = tail_.get(std::memory_order_acquire);
+      auto [next, next_stamp] = last->next_.get(std::memory_order_relaxed);
+      if (last_stamp == tail_.get_stamp(std::memory_order_relaxed)) {
         if (next == nullptr) {
-          if (last->next_.compare_exchange_strong(next, node,
-                                                  std::memory_order_release,
-                                                  std::memory_order_relaxed)) {
-            tail_.compare_exchange_strong(last, node, std::memory_order_release,
-                                          std::memory_order_relaxed);
+          if (last->next_.compare_and_swap(
+                  next, node, next_stamp, next_stamp + 1,
+                  std::memory_order_release, std::memory_order_relaxed)) {
+            tail_.compare_and_swap(last, node, last_stamp, last_stamp + 1,
+                                   std::memory_order_release,
+                                   std::memory_order_relaxed);
             return;
           }
         } else {
-          tail_.compare_exchange_strong(last, node, std::memory_order_release,
-                                        std::memory_order_relaxed);
+          tail_.compare_and_swap(last, next, last_stamp, last_stamp + 1,
+                                 std::memory_order_release,
+                                 std::memory_order_relaxed);
         }
       }
     }
@@ -52,22 +99,23 @@ class LockFreeQueueRecycle {
 
   auto dequeue() -> T {
     while (true) {
-      Node* first = head_.load(std::memory_order_acquire);
-      Node* last = tail_.load(std::memory_order_acquire);
-      Node* next = first->next_.load(std::memory_order_acquire);
+      auto [first, first_stamp] = head_.get(std::memory_order_acquire);
+      auto [last, last_stamp] = tail_.get(std::memory_order_relaxed);
+      auto [next, next_stamp] = first->next_.get(std::memory_order_relaxed);
 
-      if (first == head_.load(std::memory_order_acquire)) {
+      if (first_stamp == head_.get_stamp(std::memory_order_relaxed)) {
         if (first == last) {
           if (next == nullptr) {
             throw EmptyException("dequeue: Try to dequeue from an empty queue");
           }
-          tail_.compare_exchange_strong(last, next, std::memory_order_release,
-                                        std::memory_order_relaxed);
+          tail_.compare_and_swap(last, next, last_stamp, last_stamp + 1,
+                                 std::memory_order_release,
+                                 std::memory_order_relaxed);
         } else {
           T value = next->value_.value();
-          if (head_.compare_exchange_strong(first, next,
-                                            std::memory_order_release,
-                                            std::memory_order_relaxed)) {
+          if (head_.compare_and_swap(first, next, first_stamp, first_stamp + 1,
+                                     std::memory_order_acquire,
+                                     std::memory_order_relaxed)) {
             node_pool_.free(first);
             return value;
           }
@@ -77,50 +125,10 @@ class LockFreeQueueRecycle {
   }
 
  private:
-  template<typename U>
-  friend class NodePool;
+  AtomicStampedPtr<Node> head_;
+  AtomicStampedPtr<Node> tail_;
 
-  std::atomic<Node*> head_;
-  std::atomic<Node*> tail_;
-
-  static thread_local NodePool<T> node_pool_;
+  NodePool node_pool_;
 };
-
-template<typename T>
-class NodePool {
-  using Node = LockFreeQueueRecycle<T>::Node;
-
- public:
-  ~NodePool() {
-    Node* curr = unused_nodes_;
-    while (curr != nullptr) {
-      Node* next = curr->next_.load(std::memory_order_relaxed);
-      delete curr;
-      curr = next;
-    }
-  }
-
-  auto allocate(std::optional<T> value) -> Node* {
-    if (unused_nodes_ == nullptr) {
-      return new Node(std::move(value));
-    }
-    Node* node = unused_nodes_;
-    node->value_ = std::move(value);
-    node->next_.store(nullptr, std::memory_order_relaxed);
-    unused_nodes_ = unused_nodes_->next_.load(std::memory_order_relaxed);
-    return node;
-  }
-
-  auto free(Node* node) -> void {
-    node->next_.store(unused_nodes_, std::memory_order_relaxed);
-    unused_nodes_ = node;
-  }
-
- private:
-  Node* unused_nodes_{nullptr};
-};
-
-template<typename T>
-thread_local NodePool<T> LockFreeQueueRecycle<T>::node_pool_;
 
 #endif  // LOCK_FREE_QUEUE_RECYCLE_H_
