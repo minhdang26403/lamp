@@ -1,0 +1,6 @@
+list(APPEND BENCHMARKS
+  ${CMAKE_CURRENT_SOURCE_DIR}/lock_benchmark.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/read_write_lock_benchmark.cpp
+)
+
+set(BENCHMARKS ${BENCHMARKS} PARENT_SCOPE)
