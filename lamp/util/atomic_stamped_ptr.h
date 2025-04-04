@@ -1,7 +1,6 @@
 #ifndef ATOMIC_STAMPED_PTR_H_
 #define ATOMIC_STAMPED_PTR_H_
 
-#include <gtest/gtest.h>
 #include <atomic>
 
 template<typename T>
