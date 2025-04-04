@@ -1,4 +1,5 @@
 add_subdirectory(list)
+add_subdirectory(queue)
 add_subdirectory(synchronization)
 
 foreach(SOURCE_FILE IN LISTS BENCHMARKS)
