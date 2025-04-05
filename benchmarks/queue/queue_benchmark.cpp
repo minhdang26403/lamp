@@ -109,7 +109,6 @@ static void BM_ProducerConsumer(benchmark::State& state) {
   for (auto _ : state) {
     state.PauseTiming();
     QueueType queue;
-    std::atomic<int> items_consumed(0);
     std::atomic<bool> producers_done(false);
     state.ResumeTiming();
 
@@ -122,7 +121,7 @@ static void BM_ProducerConsumer(benchmark::State& state) {
 
     // Start consumers
     for (int t = 0; t < kConsumerThreads; ++t) {
-      consumers.emplace_back([&queue, &kItemsPerProducer, kCount]() {
+      consumers.emplace_back([&queue, &kItemsPerProducer]() {
         for (int i = 0; i < kItemsPerProducer; i++) {
           try {
             TestData item = queue.dequeue();
