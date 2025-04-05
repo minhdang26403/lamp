@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
-import numpy as np
 
 # Load the data from the CSV file
 df = pd.read_csv("queue_benchmark.csv")
