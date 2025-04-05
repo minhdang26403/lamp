@@ -1,5 +1,4 @@
 #include <benchmark/benchmark.h>
-#include <atomic>
 #include <thread>
 #include <vector>
 
@@ -15,9 +14,9 @@ struct TestData {
 };
 
 static constexpr int kMinThreads = 2;
-static constexpr int kMaxThreads = 16;
+static constexpr int kMaxThreads = 32;
 static constexpr int kMultiThreads = 2;
-static constexpr int kMinOps = 1000;
+static constexpr int kMinOps = 10000;
 static constexpr int kMaxOps = 1000000;
 static constexpr int kMultiOps = 10;
 
@@ -70,8 +69,9 @@ static void BM_SingleThreadedDequeue(benchmark::State& state) {
 // Multi-threaded enqueue benchmark
 template<typename QueueType>
 static void BM_MultiThreadedEnqueue(benchmark::State& state) {
-  const int kCount = state.range(0);
+  const int kItemsPerThread = state.range(0);
   const int kNumThreads = state.range(1);
+  const int kTotalItems = kItemsPerThread * kNumThreads;
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -80,7 +80,6 @@ static void BM_MultiThreadedEnqueue(benchmark::State& state) {
 
     std::vector<std::thread> threads;
     threads.reserve(kNumThreads);
-    const int kItemsPerThread = kCount / kNumThreads;
 
     for (int t = 0; t < kNumThreads; ++t) {
       threads.emplace_back([&queue, t, kItemsPerThread]() {
@@ -96,33 +95,35 @@ static void BM_MultiThreadedEnqueue(benchmark::State& state) {
     }
   }
 
-  state.SetItemsProcessed(int64_t(state.iterations()) * kCount);
+  state.SetItemsProcessed(int64_t(state.iterations()) * kTotalItems);
 }
 
 // Multi-threaded producer-consumer benchmark
 template<typename QueueType>
 static void BM_ProducerConsumer(benchmark::State& state) {
-  const int kCount = state.range(0);
+  const int64_t kItemsPerThread = state.range(0);  // Fixed work per thread
   const int kProducerThreads = state.range(1);
   const int kConsumerThreads = state.range(1);
+  const int64_t kTotalItems =
+      kItemsPerThread * kProducerThreads * 2;  // Total increases with threads
 
   for (auto _ : state) {
     state.PauseTiming();
     QueueType queue;
-    std::atomic<bool> producers_done(false);
     state.ResumeTiming();
 
     std::vector<std::thread> producers;
     std::vector<std::thread> consumers;
-    const int kItemsPerProducer = kCount / kProducerThreads;
 
     producers.reserve(kProducerThreads);
     consumers.reserve(kConsumerThreads);
 
-    // Start consumers
+    // Start consumers - each consumer processes items until done
     for (int t = 0; t < kConsumerThreads; ++t) {
-      consumers.emplace_back([&queue, &kItemsPerProducer]() {
-        for (int i = 0; i < kItemsPerProducer; i++) {
+      consumers.emplace_back([&queue, kItemsPerThread, kConsumerThreads]() {
+        // Each consumer tries to process roughly kTotalItems/kConsumerThreads
+        // items
+        for (int i = 0; i < kItemsPerThread; i++) {
           try {
             TestData item = queue.dequeue();
             benchmark::DoNotOptimize(item);
@@ -133,29 +134,26 @@ static void BM_ProducerConsumer(benchmark::State& state) {
       });
     }
 
-    // Start producers
+    // Start producers - each producer enqueues a fixed number of items
     for (int t = 0; t < kProducerThreads; ++t) {
-      producers.emplace_back([&queue, t, kItemsPerProducer]() {
-        for (int i = 0; i < kItemsPerProducer; ++i) {
-          TestData data{t * kItemsPerProducer + i, {0}};
+      producers.emplace_back([&queue, t, kItemsPerThread]() {
+        for (int i = 0; i < kItemsPerThread; ++i) {
+          TestData data{static_cast<int>(t * kItemsPerThread + i), {0}};
           queue.enqueue(data);
         }
       });
     }
 
-    // Join producers
+    // Join threads
     for (auto& thread : producers) {
       thread.join();
     }
-    producers_done = true;
-
-    // Join consumers
     for (auto& thread : consumers) {
       thread.join();
     }
   }
 
-  state.SetItemsProcessed(int64_t(state.iterations()) * kCount);
+  state.SetItemsProcessed(int64_t(state.iterations()) * kTotalItems);
 }
 
 // Specialized benchmarks for BoundedQueue which needs capacity
