@@ -32,13 +32,13 @@ class AtomicStampedReference {
   }
 
   auto get(std::memory_order order = std::memory_order_seq_cst) const noexcept
-      -> std::pair<T&, uint64_t> {
+      -> std::pair<const T&, uint64_t> {
     StampedRef stamped_ref = atomic_stamped_ref_.load(order);
     return {*stamped_ref.ref_ptr_, stamped_ref.stamp_};
   }
 
   auto get_ref(std::memory_order order =
-                   std::memory_order_seq_cst) const noexcept -> T& {
+                   std::memory_order_seq_cst) const noexcept -> const T& {
     return *atomic_stamped_ref_.load(order).ref_ptr_;
   }
 
@@ -56,12 +56,12 @@ class AtomicStampedReference {
 
  private:
   struct StampedRef {
-    T* ref_ptr_{nullptr};
+    const T* ref_ptr_{nullptr};
     uint64_t stamp_{};
 
     StampedRef() = default;
 
-    StampedRef(T* ref_ptr, uint64_t stamp) noexcept
+    StampedRef(const T* ref_ptr, uint64_t stamp) noexcept
         : ref_ptr_(ref_ptr), stamp_(stamp) {}
   };
 
