@@ -1,4 +1,5 @@
 list(APPEND STACK_TESTS
+  elimination_backoff_stack_test
   lock_free_stack_test
 )
 
