@@ -3,20 +3,14 @@
 
 #include <atomic>
 #include <chrono>
-#include <stdexcept>
 #include <vector>
 
 #include "util/atomic_stamped_ptr.h"
 #include "util/backoff.h"
+#include "util/common.h"
 
 template<typename Duration>
 using TimePoint = std::chrono::time_point<std::chrono::steady_clock, Duration>;
-
-class TimeoutException : public std::runtime_error {
- public:
-  TimeoutException(const std::string& what_arg)
-      : std::runtime_error(std::format("TimeoutException: {}", what_arg)) {}
-};
 
 class CompositeLock {
   // - FREE: the node is available for threads to acquire.
