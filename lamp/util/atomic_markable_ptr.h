@@ -23,14 +23,14 @@ class AtomicMarkablePtr {
   }
 
   AtomicMarkablePtr(const AtomicMarkablePtr<T>& other) {
-    auto [ptr, marked] = other.get(std::memory_order_acquire);
-    ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
+    ptr_and_mark_.store(other.get_raw_value(std::memory_order_acquire),
+                        std::memory_order_release);
   }
 
   auto operator=(const AtomicMarkablePtr<T>& other) -> AtomicMarkablePtr<T>& {
     if (this != &other) {
-      auto [ptr, marked] = other.get(std::memory_order_acquire);
-      ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
+      ptr_and_mark_.store(other.get_raw_value(std::memory_order_acquire),
+                          std::memory_order_release);
     }
     return *this;
   }
@@ -74,6 +74,11 @@ class AtomicMarkablePtr {
   auto is_marked(std::memory_order order =
                      std::memory_order_seq_cst) const noexcept -> bool {
     return unpack_mark(ptr_and_mark_.load(order));
+  }
+
+  auto get_raw_value(std::memory_order order = std::memory_order_seq_cst)
+      const noexcept -> uintptr_t {
+    return ptr_and_mark_.load(order);
   }
 
  private:
