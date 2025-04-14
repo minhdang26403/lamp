@@ -32,19 +32,13 @@ class LockFreeList {
   struct Node {
     size_t key_{};
     std::optional<T> item_{};
-    std::unique_ptr<AtomicMarkablePtr<Node>>
-        next_;  // AtomicMarkPtr does not have copy constructor, so use a
-                // unique_ptr to work around that
+    AtomicMarkablePtr<Node> next_;
     Node* next_deleted_{nullptr};
 
-    Node(size_t key)
-        : key_(key),
-          next_(std::make_unique<AtomicMarkablePtr<Node>>(nullptr, false)) {}
+    Node(size_t key) : key_(key), next_(nullptr, false) {}
 
     Node(size_t key, const T& item)
-        : key_(key),
-          item_(item),
-          next_(std::make_unique<AtomicMarkablePtr<Node>>(nullptr, false)) {}
+        : key_(key), item_(item), next_(nullptr, false) {}
   };
 
  public:
@@ -61,7 +55,7 @@ class LockFreeList {
     size_t max_key = std::numeric_limits<size_t>::max();
     head_ = new Node(min_key);
     tail_ = new Node(max_key);
-    head_->next_ = std::make_unique<AtomicMarkablePtr<Node>>(tail_, false);
+    head_->next_ = AtomicMarkablePtr<Node>(tail_, false);
   }
 
   // Prevent copying to avoid complex ownership issues
@@ -85,7 +79,7 @@ class LockFreeList {
     // Then free all nodes still in the main list
     curr = head_;
     while (curr != nullptr) {
-      Node* next = curr->next_->get_ptr(std::memory_order_acquire);
+      Node* next = curr->next_.get_ptr(std::memory_order_acquire);
       delete curr;
       curr = next;
     }
@@ -113,13 +107,13 @@ class LockFreeList {
 
       // Create new node with pointers to the current node
       auto node = new Node(key, item);
-      node->next_ = std::make_unique<AtomicMarkablePtr<Node>>(curr, false);
+      node->next_ = AtomicMarkablePtr<Node>(curr, false);
 
       // Try to insert new node between pred and curr
       // This will fail if another thread modified this region of the list
-      if (pred->next_->compare_and_swap(curr, node, false, false,
-                                        std::memory_order_release,
-                                        std::memory_order_relaxed)) {
+      if (pred->next_.compare_and_swap(curr, node, false, false,
+                                       std::memory_order_release,
+                                       std::memory_order_relaxed)) {
         // Succeed only if pred is unmarked and still points to curr
         return true;
       }
@@ -152,12 +146,12 @@ class LockFreeList {
         return false;
       }
 
-      Node* succ = curr->next_->get_ptr(std::memory_order_acquire);
+      Node* succ = curr->next_.get_ptr(std::memory_order_acquire);
 
       // Phase 1: Logical removal - mark the next pointer
       // This logically removes the node without changing list structure
-      if (!curr->next_->compare_and_swap(succ, succ, false, true,
-                                         std::memory_order_relaxed)) {
+      if (!curr->next_.compare_and_swap(succ, succ, false, true,
+                                        std::memory_order_relaxed)) {
         // Someone else modified curr's next pointer or curr's mark bit - retry
         continue;
       }
@@ -165,9 +159,9 @@ class LockFreeList {
       // Phase 2: Physical removal - try to update pred to skip curr
       // Even if this fails, the node is already logically removed
       // A future traversal through find() will clean it up eventually
-      if (pred->next_->compare_and_swap(curr, succ, false, false,
-                                        std::memory_order_release,
-                                        std::memory_order_relaxed)) {
+      if (pred->next_.compare_and_swap(curr, succ, false, false,
+                                       std::memory_order_release,
+                                       std::memory_order_relaxed)) {
         // Successfully (physically) remove curr from the list, so we insert
         // curr into the garbage list to clean up its memory later
         add_to_garbage(curr);
@@ -189,16 +183,16 @@ class LockFreeList {
    */
   auto contains(const T& item) -> bool {
     size_t key = get_hash_value(item);
-    Node* curr = head_->next_->get_ptr(std::memory_order_acquire);
+    Node* curr = head_->next_.get_ptr(std::memory_order_acquire);
 
     // Traverse until we find a node with a key >= our target
     while (curr->key_ < key) {
-      curr = curr->next_->get_ptr(std::memory_order_acquire);
+      curr = curr->next_.get_ptr(std::memory_order_acquire);
     }
 
     // Check if we found the exact key and it's not marked for deletion
     return (curr != tail_ && curr->key_ == key &&
-            !curr->next_->is_marked(std::memory_order_acquire));
+            !curr->next_.is_marked(std::memory_order_acquire));
   }
 
  private:
@@ -220,21 +214,21 @@ class LockFreeList {
   auto find(Node* head, size_t key) -> std::pair<Node*, Node*> {
   retry:
     Node* pred = head;
-    Node* curr = pred->next_->get_ptr(std::memory_order_relaxed);
+    Node* curr = pred->next_.get_ptr(std::memory_order_relaxed);
 
     // Traverse the list indefinitely until we find the right spot
     while (true) {
       // Get the successor node and curr's marked status from curr's next ptr
-      auto [succ, marked] = curr->next_->get(std::memory_order_acquire);
+      auto [succ, marked] = curr->next_.get(std::memory_order_acquire);
 
       // If curr is marked, it's logically removed; clean it up
       while (marked) {
         // Attempt to physically remove curr by updating pred->next to succ
         // - Expected: pred->next points to curr and pred is unmarked
         // - Desired: pred->next points to succ and pred remains unmarked
-        if (pred->next_->compare_and_swap(curr, succ, false, false,
-                                          std::memory_order_release,
-                                          std::memory_order_relaxed)) {
+        if (pred->next_.compare_and_swap(curr, succ, false, false,
+                                         std::memory_order_release,
+                                         std::memory_order_relaxed)) {
           // Successfully (physically) remove curr from the list, so we insert
           // curr into the garbage list to clean up its memory later
           add_to_garbage(curr);
@@ -250,7 +244,7 @@ class LockFreeList {
 
         // Successfully removed curr; advance to succ and check its next
         curr = succ;
-        std::tie(succ, marked) = curr->next_->get(std::memory_order_acquire);
+        std::tie(succ, marked) = curr->next_.get(std::memory_order_acquire);
       }
 
       // At this point, curr is unmarked (not logically removed).

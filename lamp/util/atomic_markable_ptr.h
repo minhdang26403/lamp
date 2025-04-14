@@ -22,6 +22,19 @@ class AtomicMarkablePtr {
     ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
   }
 
+  AtomicMarkablePtr(const AtomicMarkablePtr<T>& other) {
+    auto [ptr, marked] = other.get(std::memory_order_acquire);
+    ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
+  }
+
+  auto operator=(const AtomicMarkablePtr<T>& other) -> AtomicMarkablePtr<T>& {
+    if (this != &other) {
+      auto [ptr, marked] = other.get(std::memory_order_acquire);
+      ptr_and_mark_.store(pack(ptr, marked), std::memory_order_release);
+    }
+    return *this;
+  }
+
   /**
    * Atomically compares and sets both the pointer and mark bit
    *
@@ -78,7 +91,7 @@ class AtomicMarkablePtr {
 
   // Helper to extract mark from a packed value
   static auto unpack_mark(uintptr_t value) noexcept -> bool {
-    return (value & MARK_BIT) != 0;
+    return static_cast<bool>(value & MARK_BIT);
   }
 
   std::atomic<uintptr_t> ptr_and_mark_;
