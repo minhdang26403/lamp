@@ -95,6 +95,7 @@ class LockFreeList {
    */
   auto add(const T& item) -> bool {
     size_t key = get_hash_value(item);
+    auto node = new Node(key, item);
     while (true) {
       // Find insertion point - returns a pair of nodes (pred, curr) where
       // pred->key < key <= curr->key and neither is logically deleted
@@ -106,7 +107,6 @@ class LockFreeList {
       }
 
       // Create new node with pointers to the current node
-      auto node = new Node(key, item);
       node->next_ = AtomicMarkablePtr<Node>(curr, false);
 
       // Try to insert new node between pred and curr
@@ -117,10 +117,6 @@ class LockFreeList {
         // Succeed only if pred is unmarked and still points to curr
         return true;
       }
-
-      // CAS failed - retry from beginning
-      // Note: We must delete the created node to avoid memory leak
-      delete node;
     }
   }
 
