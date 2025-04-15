@@ -1,6 +1,6 @@
 # Lamp
 
-Lamp is a library of concurrent data structures and synchronization primitives developed while following the book "The Art of Multiprocessor Programming".
+Lamp is a library of concurrent data structures and synchronization primitives implemented for learning purpose.
 
 TODO:
 - Add `try_lock()` method to the `Lock` interface
@@ -9,6 +9,7 @@ TODO:
 
 ## Data Structures
 This project implements various concurrent data structures based on seminal research in the field for learning purpose
+
 ### List
 - `CoarseList`: A concurrent list implementation that uses a single lock to guard the entire list. While simple, it offers limited concurrency as operations must acquire exclusive access to the entire structure.
 - `FineList`: A fine-grained locking implementation that uses lock coupling (hand-over-hand locking) [[Bay77]](#Bay77) to allow multiple threads to access different parts of the list concurrently. Each node has its own lock, improving parallelism compared to coarse-grained locking.
