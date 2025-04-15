@@ -24,7 +24,7 @@ struct data_to_reclaim {
 
 class HazardPtr {
   struct ThreadContext {
-    std::vector<data_to_reclaim> pending_reclaims_;
+    std::vector<data_to_reclaim*> pending_reclaims_;
     std::vector<std::atomic<void*>> reservations_;
     ThreadContext* next_{};
 
@@ -42,23 +42,45 @@ class HazardPtr {
   };
 
  public:
+  /**
+   * @brief Called once, before any call to op_begin()
+   * @param num the maximum number of locations the caller can reserve
+   */
   auto register_thread(size_t num) -> void {
     self_ = new ThreadContext(num, this);
   }
 
+  /**
+   * @brief Called once, after the last call to op_end()
+   */
   auto unregister_thread() -> void {
     // no-op
   }
 
+  /**
+   * @brief Indicate the beginning of a concurrent operation
+   */
   auto op_begin() -> void {
     // no-op
   }
 
+  /**
+   * @brief Try to reclaim a pointer
+   * @tparam T the type of the data pointed by the pointer; need to know the
+   * data type for deallocation
+   * @param ptr the pointer to reclaim
+   */
   template<typename T>
   auto sched_for_reclaim(T* ptr) -> void {
-    self_->pending_reclaims_.emplace_back(ptr);
+    self_->pending_reclaims_.push_back(new data_to_reclaim(ptr));
   }
 
+  /**
+   * @brief Try to protect a pointer from reclamation
+   * @param ptr the pointer to protect
+   * @return return true if we can reserve a spot to protect the pointer;
+   * otherwise, throw an exception
+   */
   auto try_reserve(void* ptr) -> bool {
     for (auto& reservation : self_->reservations_) {
       if (reservation.load(std::memory_order_relaxed) == nullptr) {
@@ -69,6 +91,10 @@ class HazardPtr {
     throw std::runtime_error{"Can't reserve a spot for the pointer"};
   }
 
+  /**
+   * @brief Stop protecting a pointer
+   * @param ptr the pointer to stop protecting
+   */
   auto unreserve(void* ptr) -> void {
     for (auto& reservation : self_->reservations_) {
       if (reservation.load(std::memory_order_relaxed) == ptr) {
@@ -77,6 +103,9 @@ class HazardPtr {
     }
   }
 
+  /**
+   * @brief Indicate the end of a concurrent operation
+   */
   auto op_end() -> void {
     for (auto& reservation : self_->reservations_) {
       reservation.store(nullptr, std::memory_order_release);
@@ -84,8 +113,10 @@ class HazardPtr {
 
     auto it = self_->pending_reclaims_.begin();
     while (it != self_->pending_reclaims_.end()) {
-      if (is_unreserved(it->data_)) {
+      data_to_reclaim* reclaim_obj = *it;
+      if (is_unreserved(reclaim_obj->data_)) {
         it = self_->pending_reclaims_.erase(it);
+        delete reclaim_obj;
       } else {
         ++it;
       }
@@ -93,6 +124,12 @@ class HazardPtr {
   }
 
  private:
+  /**
+   * @brief Checks whether the pointer is currently reserved by any threads
+   * @param ptr the pointer to check
+   * @return true if the pointer is not reserved by any threads; otherwise,
+   * return false
+   */
   auto is_unreserved(void* ptr) -> bool {
     ThreadContext* curr = head_.load(std::memory_order_acquire);
     while (curr != nullptr) {
